@@ -1,0 +1,21 @@
+[package]
+name = "yerbacapital-registry"
+description = "YerbaCapital warehouse-receipt registry: roles, lots, non-fungible receipts, attestations and encumbrance."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+# `stellar contract build` passes `--crate-type=cdylib` explicitly for the wasm
+# artifact, so keeping only `rlib` here lets `cargo test` build on every host
+# (Windows' mingw ld cannot export the >65k symbols a test cdylib produces) and
+# lets other crates import these types. See AGENTS.md §8.1.
+crate-type = ["rlib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+yerbacapital-shared = { path = "../shared" }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

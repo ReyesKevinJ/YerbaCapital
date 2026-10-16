@@ -1,0 +1,16 @@
+[package]
+name = "yerbacapital-shared"
+description = "Shared on-chain types for the YerbaCapital registry and vault contracts (no contract entrypoints)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+soroban-sdk = { workspace = true }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

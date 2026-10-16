@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["contracts/shared", "contracts/registry", "contracts/vault"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+soroban-sdk = "29.0.1"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = false
+panic = "abort"
+codegen-units = 1
+lto = true
