@@ -31,6 +31,8 @@ pnpm test
 
 `setup:local` crea `.env` con una credencial aleatoria y permisos privados. No imprime la credencial ni sobrescribe archivos existentes. Si ya tenés `.env`, completalo desde `.env.example`. Los IDs del ejemplo corresponden al despliegue documentado; Testnet puede resetearse.
 
+Para organizar acuerdos y documentos sintéticos, ejecutá `pnpm setup:pilot` y abrí `/pilot` con la app y el servicio activos. Los códigos privados de edición, revisión y lectura quedan en `.stellar/pilot-access.json` (ignorado por Git). El expediente se guarda en el servidor local y exige otro integrante para revisar; no es una firma jurídica. Instrucciones de acceso, exportación y límites en [app/PILOT.md](app/PILOT.md); copias completas y recuperación en [svc/PILOT.md](svc/PILOT.md). La copia anterior del navegador sigue disponible en `/pilot/local`.
+
 Para activar el protocolo en `.env`, configurá `NEXT_PUBLIC_CHAIN_ENABLED=true`. `false` mantiene disponible la carga de evidencia local. La integración exige el RPC oficial de Testnet y tres direcciones de contrato válidas y distintas. El cliente comprueba la revisión de vault antes de preparar operaciones.
 
 En tres terminales distintas, desde la raíz:

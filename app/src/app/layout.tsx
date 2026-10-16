@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
+import "../features/dashboard/dashboard.css";
 
 export const metadata: Metadata = {
   title: "YerbaCapital · Demo Testnet",

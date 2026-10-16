@@ -1,3 +1,5 @@
+import { pilotHandler } from "../pilot/http.js";
+import { PilotError } from "../pilot/model.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { ServiceConfig } from "../config/environment.js";
@@ -10,6 +12,7 @@ class RequestError extends Error {
 
 export function createEvidenceServer(config: ServiceConfig) {
   const store = new EvidenceStore(config.storageDirectory);
+  const handlePilot = pilotHandler(config.storageDirectory, config.pilotMembers ?? []);
   const tokenDigest = createHash("sha256").update(`Bearer ${config.accessToken}`).digest();
   const server = createServer((request, response) => {
     handle(request, response).catch((error: unknown) => {
@@ -17,7 +20,7 @@ export function createEvidenceServer(config: ServiceConfig) {
         response.destroy();
         return;
       }
-      if (error instanceof RequestError) {
+      if (error instanceof RequestError || error instanceof PilotError) {
         request.resume();
         json(response, error.status, { error: error.message });
       } else if (error instanceof EvidenceIntegrityError) {
@@ -44,6 +47,10 @@ export function createEvidenceServer(config: ServiceConfig) {
         scope: "local-synthetic-evidence",
         attestsPhysicalFacts: false,
       });
+      return;
+    }
+    if (url.pathname === "/pilot" || url.pathname.startsWith("/pilot/")) {
+      await handlePilot(request, response, url.pathname);
       return;
     }
     const provided = createHash("sha256").update(request.headers.authorization ?? "").digest();

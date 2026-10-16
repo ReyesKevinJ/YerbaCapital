@@ -16,7 +16,8 @@
     "dev:svc": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence start",
     "test:e2e": "pnpm --filter app test:e2e",
     "build:clients": "pnpm --filter registry-client --filter vault-client --filter settlement-client build",
-    "dev:indexer": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence index"
+    "dev:indexer": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence index",
+    "setup:pilot": "node scripts/setup-pilot.mjs"
   },
   "devDependencies": {
     "@types/node": "22",

@@ -4,6 +4,11 @@ test("public view reads both confirmed synthetic Testnet paths without a wallet"
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
+  const lots = page.getByRole("table", { name: "Lotes leídos del registry de Testnet" });
+  await expect(lots.getByText("11.000 kg", { exact: true })).toBeVisible({ timeout: 30000 });
+  await expect(lots.getByText("Deteriorado", { exact: true })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("dashboard-testnet.png"), fullPage: true });
+  await page.getByRole("button", { name: "Operaciones", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Protocolo y firmas por rol" })).toBeVisible();
   const health = await page.request.get("/api/system");
   expect(health.ok()).toBe(true);

@@ -1,3 +1,4 @@
+import { parseMembers, type Member } from "../pilot/model.js";
 import { resolve } from "node:path";
 
 export const TESTNET_PASSPHRASE = "Test SDF Network ; September 2015";
@@ -10,6 +11,7 @@ export type ServiceConfig = {
   accessToken: string;
   maxEvidenceBytes: number;
   historyPath?: string;
+  pilotMembers?: Member[];
 };
 
 /** Read operational configuration only; roles and financial state belong on-chain. */
@@ -34,6 +36,7 @@ export function loadServiceConfig(env: Readonly<Record<string, string | undefine
     port: boundedInteger(env.EVIDENCE_PORT ?? "3001", "EVIDENCE_PORT", 1, 65535),
     storageDirectory: resolve(required(env, "EVIDENCE_STORAGE_DIR")),
     accessToken,
+    pilotMembers: parseMembers(env.PILOT_MEMBERS_JSON),
     maxEvidenceBytes: boundedInteger(env.EVIDENCE_MAX_BYTES ?? "5242880", "EVIDENCE_MAX_BYTES", 1, 20 * 1024 * 1024),
     historyPath: resolve(env.INDEXER_STORAGE_DIR ?? "../.indexer", "history.json"),
   };

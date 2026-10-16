@@ -1,5 +1,9 @@
+import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 import { fileURLToPath } from "node:url";
+
+const members = process.env.PILOT_MEMBERS_JSON || JSON.stringify(["editor", "reviewer", "observer"].map(role => ({ id: `${role}-test`, role, token: randomBytes(32).toString("base64url") })));
+process.env.PILOT_MEMBERS_JSON = members;
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -20,7 +24,7 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: [
-    { command: "pnpm dev:svc", cwd: root, url: "http://127.0.0.1:3001/health", reuseExistingServer: false, timeout: 60_000 },
+    { command: "pnpm dev:svc", cwd: root, env: { PILOT_MEMBERS_JSON: members }, url: "http://127.0.0.1:3001/health", reuseExistingServer: false, timeout: 60_000 },
     { command: "pnpm dev:app", cwd: root, env: { NEXT_PUBLIC_CHAIN_ENABLED: "false" }, url: "http://127.0.0.1:3000", reuseExistingServer: false, timeout: 60_000 },
   ],
 });

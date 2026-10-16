@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import type { Lot } from "registry-client";
 import { connectWallet, walletSigners } from "../lib/wallet/freighter";
@@ -49,7 +49,9 @@ function eventEvidence(data: unknown): string | undefined {
   return typeof attestation.evidence === "string" && /^[a-f0-9]{64}$/.test(attestation.evidence) ? attestation.evidence : undefined;
 }
 
-export function ProtocolWorkbench() {
+export type OperationRequest = { id: number; operation: Operation; values: Record<string, string> };
+
+export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfirmed }: { request?: OperationRequest; view?: "all" | "trace"; selectedLot?: { id: number; lot: string }; onConfirmed?: () => void } = {}) {
   const [account, setAccount] = useState("");
   const [operation, setOperation] = useState<Operation>("register_lot");
   const [values, setValues] = useState<Record<string, string>>({ kg: "12000", moisture: "500", rate: "1200", duration: "15552000" });
@@ -70,6 +72,21 @@ export function ProtocolWorkbench() {
   const [queryError, setQueryError] = useState("");
   const [queryBusy, setQueryBusy] = useState(false);
   const queryActive = useRef(false);
+
+  useEffect(() => {
+    if (!request) return;
+    if (active.current || pending) { setError("Terminá o consultá la operación en curso antes de cambiar de acción."); return; }
+    setOperation(request.operation);
+    setValues({ kg: "12000", moisture: "500", rate: "1200", duration: "15552000", ...request.values });
+    setPrepared(undefined); setRequired([]); setStatus(""); setError("");
+    if (request.values.lot) setLotNumber(request.values.lot);
+    if (request.values.loan) setLoanNumber(request.values.loan);
+    document.getElementById("protocol-heading")?.scrollIntoView({ block: "start" });
+  }, [request]);
+
+  useEffect(() => {
+    if (selectedLot) { setLotNumber(selectedLot.lot); setLot(undefined); setHistory(undefined); setFinancial(""); setQueryError(""); }
+  }, [selectedLot]);
 
   async function action(work: () => Promise<void>) {
     if (active.current) return;
@@ -113,7 +130,7 @@ export function ProtocolWorkbench() {
   }
 
   return <>
-    <section className="panel" aria-labelledby="protocol-heading">
+    <section className="panel" aria-labelledby="protocol-heading" hidden={view === "trace"}>
       <p className="eyebrow">02 / Operaciones reales en Testnet</p>
       <h2 id="protocol-heading">Protocolo y firmas por rol</h2>
       <p>Usá cuentas de prueba distintas para cooperativa, custodio y verificador. El contrato decide los permisos y los importes admisibles.</p>
@@ -159,7 +176,7 @@ export function ProtocolWorkbench() {
             if (current !== source) throw new Error("Volvé a la cuenta de firma final en Freighter.");
             setAccount(current);
             const outcome = await invoke(async () => prepared, phase => setStatus(phaseText[phase]));
-            setTxHash(outcome.hash); setPrepared(undefined);
+            setTxHash(outcome.hash); setPrepared(undefined); onConfirmed?.();
           } catch (error) {
             if (error instanceof ConfirmationPending) { setTxHash(error.hash); setPending(true); setPrepared(undefined); }
             throw error;
