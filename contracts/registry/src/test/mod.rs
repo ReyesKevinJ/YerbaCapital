@@ -1,496 +1,770 @@
-extern crate std;
-
-use crate::{Commodity, Error, LotStatus, Registry, RegistryClient, Role};
+use crate::{errors::Error, events::LotVerified, types::*, Registry, RegistryClient};
+use soroban_sdk::events::Event;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger as _},
-    Address, BytesN, Env,
+    contract, contractimpl,
+    testutils::{Address as _, Events, Ledger},
+    Address, BytesN, Env, IntoVal, Symbol,
 };
 
-fn hash(env: &Env, byte: u8) -> BytesN<32> {
-    BytesN::from_array(env, &[byte; 32])
+#[contract]
+struct VaultHarness;
+#[contractimpl]
+impl VaultHarness {
+    pub fn __constructor(env: Env, registry: Address, admin: Address) {
+        admin.require_auth();
+        RegistryClient::new(&env, &registry).bind_vault(&admin, &env.current_contract_address());
+    }
+    pub fn lock(env: Env, registry: Address, id: u64, loan: u64, owner: Address) {
+        RegistryClient::new(&env, &registry).lock(&id, &loan, &owner);
+    }
+    pub fn unlock(env: Env, registry: Address, id: u64, loan: u64) {
+        RegistryClient::new(&env, &registry).unlock(&id, &loan);
+    }
+    pub fn claim(env: Env, registry: Address, id: u64, loan: u64, lender: Address) {
+        RegistryClient::new(&env, &registry).transfer_on_default(&id, &loan, &lender);
+    }
+    pub fn withdraw(
+        env: Env,
+        registry: Address,
+        id: u64,
+        loan: u64,
+        owner: Address,
+        kg: u64,
+        hash: BytesN<32>,
+    ) {
+        owner.require_auth();
+        RegistryClient::new(&env, &registry)
+            .get_lot(&id)
+            .custodian
+            .require_auth();
+        RegistryClient::new(&env, &registry).withdraw_encumbered(&id, &loan, &owner, &kg, &hash);
+    }
 }
 
 struct Fixture {
     env: Env,
-    client: RegistryClient<'static>,
+    registry: Address,
+    vault: Address,
     admin: Address,
     owner: Address,
     custodian: Address,
     verifier: Address,
     oracle: Address,
 }
+impl Fixture {
+    fn new() -> Self {
+        let env = Env::default();
+        env.mock_all_auths();
+        env.ledger().with_mut(|ledger| {
+            ledger.timestamp = 1_000_000;
+            ledger.protocol_version = 29;
+        });
+        let admin = Address::generate(&env);
+        let registry = env.register(Registry, (&admin,));
+        let vault = env.register(VaultHarness, (&registry, &admin));
+        let owner = Address::generate(&env);
+        let custodian = Address::generate(&env);
+        let verifier = Address::generate(&env);
+        let oracle = Address::generate(&env);
+        let client = RegistryClient::new(&env, &registry);
+        for (address, role) in [
+            (&custodian, Role::Custodian),
+            (&verifier, Role::Verifier),
+            (&oracle, Role::PriceOracle),
+        ] {
+            client.grant_role(&admin, address, &role);
+        }
+        Self {
+            env,
+            registry,
+            vault,
+            admin,
+            owner,
+            custodian,
+            verifier,
+            oracle,
+        }
+    }
+    fn client(&self) -> RegistryClient<'_> {
+        RegistryClient::new(&self.env, &self.registry)
+    }
+    fn hash(&self) -> BytesN<32> {
+        BytesN::from_array(&self.env, &[7; 32])
+    }
+    fn register(&self) -> u64 {
+        self.client().register_lot(
+            &self.owner,
+            &self.custodian,
+            &Symbol::new(&self.env, "YERBA_CANCHADA"),
+            &12_000,
+            &self.hash(),
+            &AgingMethod::Natural,
+            &900_000,
+            &self.hash(),
+        )
+    }
+    fn receipt(&self) -> u64 {
+        let id = self.register();
+        self.client()
+            .verify_lot(&self.verifier, &id, &12_000, &500, &self.hash());
+        self.client().issue_receipt(&self.verifier, &id);
+        self.client()
+            .post_valuation(&self.oracle, &id, &120_000_000_000, &self.hash());
+        id
+    }
+    fn lock(&self, id: u64) {
+        VaultHarnessClient::new(&self.env, &self.vault).lock(&self.registry, &id, &1, &self.owner);
+    }
+}
 
-fn setup() -> Fixture {
+#[test]
+fn deposit_has_two_exact_authorizations_and_a_verifiable_event() {
+    use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+    let f = Fixture::new();
+    let id = f.register();
+    let args: soroban_sdk::Vec<soroban_sdk::Val> =
+        (&f.verifier, id, 12_000u64, 500u32, f.hash()).into_val(&f.env);
+    f.client()
+        .mock_auths(&[
+            MockAuth {
+                address: &f.verifier,
+                invoke: &MockAuthInvoke {
+                    contract: &f.registry,
+                    fn_name: "verify_lot",
+                    args: args.clone(),
+                    sub_invokes: &[],
+                },
+            },
+            MockAuth {
+                address: &f.custodian,
+                invoke: &MockAuthInvoke {
+                    contract: &f.registry,
+                    fn_name: "verify_lot",
+                    args,
+                    sub_invokes: &[],
+                },
+            },
+        ])
+        .verify_lot(&f.verifier, &id, &12_000, &500, &f.hash());
+    let auths = f.env.auths();
+    assert_eq!(auths.len(), 2);
+    assert_eq!(auths[0].0, f.verifier);
+    assert_eq!(auths[1].0, f.custodian);
+    let events = f.env.events().all();
+    let value = f.client().get_lot(&id);
+    assert_eq!(value.physical_status, PhysicalStatus::Verified);
+    assert_eq!(value.receipt_status, ReceiptStatus::Unissued);
+    let expected = LotVerified {
+        lot_id: id,
+        lot: value.clone(),
+        timestamp: 1_000_000,
+    };
+    assert_eq!(
+        events.events().last(),
+        Some(&expected.to_xdr(&f.env, &f.registry))
+    );
+    assert_eq!(
+        expected.topics(&f.env),
+        soroban_sdk::vec![
+            &f.env,
+            Symbol::new(&f.env, "LotVerified").into_val(&f.env),
+            id.into_val(&f.env)
+        ]
+    );
+    assert_eq!(value.last_attestation.evidence, f.hash());
+    assert_eq!(value.last_attestation.co_signer, Some(f.custodian));
+}
+
+#[test]
+fn missing_custodian_authorization_cannot_verify() {
+    use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+    let f = Fixture::new();
+    let id = f.register();
+    let args: soroban_sdk::Vec<soroban_sdk::Val> =
+        (&f.verifier, id, 12_000u64, 500u32, f.hash()).into_val(&f.env);
+    assert!(f
+        .client()
+        .mock_auths(&[MockAuth {
+            address: &f.verifier,
+            invoke: &MockAuthInvoke {
+                contract: &f.registry,
+                fn_name: "verify_lot",
+                args,
+                sub_invokes: &[]
+            }
+        }])
+        .try_verify_lot(&f.verifier, &id, &12_000, &500, &f.hash())
+        .is_err());
+    assert_eq!(
+        f.client().get_lot(&id).physical_status,
+        PhysicalStatus::Registered
+    );
+}
+
+#[test]
+fn vault_binding_is_one_time_and_precedes_lots() {
+    let f = Fixture::new();
+    assert_eq!(f.client().get_vault(), Some(f.vault.clone()));
+    assert_eq!(
+        f.client().try_bind_vault(&f.admin, &f.vault),
+        Err(Ok(Error::VaultAlreadyConfigured))
+    );
     let env = Env::default();
     env.mock_all_auths();
-    env.ledger().with_mut(|l| l.timestamp = 1_700_000_000);
     let admin = Address::generate(&env);
     let owner = Address::generate(&env);
     let custodian = Address::generate(&env);
-    let verifier = Address::generate(&env);
-    let oracle = Address::generate(&env);
-
-    let id = env.register(Registry, ());
-    let client = RegistryClient::new(&env, &id);
-    client.initialize(&admin);
-    client.grant_role(&custodian, &Role::Custodian);
-    client.grant_role(&verifier, &Role::Verifier);
-    client.grant_role(&oracle, &Role::PriceOracle);
-
-    Fixture {
-        env,
-        client,
-        admin,
-        owner,
-        custodian,
-        verifier,
-        oracle,
-    }
+    let registry = env.register(Registry, (&admin,));
+    let client = RegistryClient::new(&env, &registry);
+    client.grant_role(&admin, &custodian, &Role::Custodian);
+    let hash = BytesN::from_array(&env, &[1; 32]);
+    assert_eq!(
+        client.try_register_lot(
+            &owner,
+            &custodian,
+            &Symbol::new(&env, "YERBA_CANCHADA"),
+            &12_000,
+            &hash,
+            &AgingMethod::Natural,
+            &0,
+            &hash
+        ),
+        Err(Ok(Error::VaultNotConfigured))
+    );
+    let account = Address::from_str(
+        &env,
+        "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+    );
+    assert_eq!(
+        client.try_bind_vault(&admin, &account),
+        Err(Ok(Error::InvalidAddress))
+    );
 }
 
-impl Fixture {
-    fn register(&self, lot_id: u64) {
-        self.client.register_lot(
-            &self.owner,
-            &lot_id,
-            &Commodity::YerbaCanchada,
+#[test]
+fn admin_does_not_authorize_direct_vault_only_entrypoints() {
+    use soroban_sdk::testutils::{MockAuth, MockAuthInvoke};
+    let f = Fixture::new();
+    let id = f.receipt();
+    let args: soroban_sdk::Vec<soroban_sdk::Val> = (id, 1u64, &f.owner).into_val(&f.env);
+    assert!(f
+        .client()
+        .mock_auths(&[MockAuth {
+            address: &f.admin,
+            invoke: &MockAuthInvoke {
+                contract: &f.registry,
+                fn_name: "lock",
+                args,
+                sub_invokes: &[]
+            }
+        }])
+        .try_lock(&id, &1, &f.owner)
+        .is_err());
+    assert_eq!(
+        f.client().get_lot(&id).receipt_status,
+        ReceiptStatus::Receipted
+    );
+}
+
+#[test]
+fn roles_are_admin_only_idempotent_and_revocable() {
+    let f = Fixture::new();
+    let outsider = Address::generate(&f.env);
+    assert_eq!(
+        f.client()
+            .try_grant_role(&outsider, &outsider, &Role::Verifier),
+        Err(Ok(Error::NotAuthorized))
+    );
+    f.client()
+        .grant_role(&f.admin, &f.verifier, &Role::Verifier);
+    assert!(f.client().has_role(&f.verifier, &Role::Verifier));
+    let id = f.register();
+    f.client()
+        .revoke_role(&f.admin, &f.verifier, &Role::Verifier);
+    assert!(!f.client().has_role(&f.verifier, &Role::Verifier));
+    assert_eq!(
+        f.client()
+            .try_verify_lot(&f.verifier, &id, &12_000, &500, &f.hash()),
+        Err(Ok(Error::RoleMissing))
+    );
+    assert_eq!(
+        f.client()
+            .try_set_params(&outsider, &RegistryParams::default()),
+        Err(Ok(Error::NotAuthorized))
+    );
+}
+
+#[test]
+fn registration_rejects_unbacked_or_unsupported_declarations() {
+    let f = Fixture::new();
+    let zero = BytesN::from_array(&f.env, &[0; 32]);
+    let client = f.client();
+    let commodity = Symbol::new(&f.env, "YERBA_CANCHADA");
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &Symbol::new(&f.env, "SOY"),
             &12_000,
-            &self.custodian,
-            &hash(&self.env, 1),
+            &f.hash(),
+            &AgingMethod::Natural,
+            &0,
+            &f.hash()
+        ),
+        Err(Ok(Error::UnsupportedCommodity))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &commodity,
+            &0,
+            &f.hash(),
+            &AgingMethod::Natural,
+            &0,
+            &f.hash()
+        ),
+        Err(Ok(Error::WeightInvalid))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &commodity,
+            &999,
+            &f.hash(),
+            &AgingMethod::Natural,
+            &0,
+            &f.hash()
+        ),
+        Err(Ok(Error::WeightInvalid))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &commodity,
+            &1_000,
+            &f.hash(),
+            &AgingMethod::Natural,
+            &0,
+            &zero
+        ),
+        Err(Ok(Error::EvidenceMissing))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.custodian,
+            &f.custodian,
+            &commodity,
+            &12_000,
+            &f.hash(),
+            &AgingMethod::Natural,
+            &0,
+            &f.hash()
+        ),
+        Err(Ok(Error::RoleConflict))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &commodity,
+            &12_000,
+            &zero,
+            &AgingMethod::Natural,
+            &0,
+            &f.hash()
+        ),
+        Err(Ok(Error::ParamOutOfBounds))
+    );
+    assert_eq!(
+        client.try_register_lot(
+            &f.owner,
+            &f.custodian,
+            &commodity,
+            &12_000,
+            &f.hash(),
+            &AgingMethod::Natural,
+            &1_000_001,
+            &f.hash()
+        ),
+        Err(Ok(Error::ParamOutOfBounds))
+    );
+    assert_eq!(f.register(), 1);
+}
+
+#[test]
+fn moisture_boundaries_and_verifier_separation_are_enforced() {
+    let f = Fixture::new();
+    for humidity in [299u32, 701] {
+        let id = f.register();
+        assert_eq!(
+            f.client()
+                .try_verify_lot(&f.verifier, &id, &12_000, &humidity, &f.hash()),
+            Err(Ok(Error::MoistureOutOfBand))
         );
     }
-
-    fn verify(&self, lot_id: u64) {
-        self.client.verify_lot(
-            &self.verifier,
-            &self.custodian,
-            &lot_id,
+    for humidity in [300u32, 700] {
+        let id = f.register();
+        f.client()
+            .verify_lot(&f.verifier, &id, &1_000, &humidity, &f.hash());
+    }
+    let id = f.register();
+    f.client().grant_role(&f.admin, &f.owner, &Role::Verifier);
+    f.client()
+        .grant_role(&f.admin, &f.custodian, &Role::Verifier);
+    for actor in [&f.owner, &f.custodian] {
+        assert_eq!(
+            f.client()
+                .try_verify_lot(actor, &id, &12_000, &500, &f.hash()),
+            Err(Ok(Error::RoleConflict))
+        );
+    }
+    assert_eq!(
+        f.client()
+            .try_verify_lot(&f.verifier, &id, &999, &500, &f.hash()),
+        Err(Ok(Error::WeightInvalid))
+    );
+    assert_eq!(
+        f.client().try_verify_lot(
+            &f.verifier,
+            &id,
+            &12_000,
             &500,
+            &BytesN::from_array(&f.env, &[0; 32])
+        ),
+        Err(Ok(Error::EvidenceMissing))
+    );
+}
+
+#[test]
+fn receipt_issuance_requires_original_verifier_and_occurs_once() {
+    let f = Fixture::new();
+    let id = f.register();
+    assert_eq!(
+        f.client().try_issue_receipt(&f.verifier, &id),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+    f.client()
+        .verify_lot(&f.verifier, &id, &12_000, &500, &f.hash());
+    let other = Address::generate(&f.env);
+    f.client().grant_role(&f.admin, &other, &Role::Verifier);
+    assert_eq!(
+        f.client().try_issue_receipt(&other, &id),
+        Err(Ok(Error::NotAuthorized))
+    );
+    f.client().issue_receipt(&f.verifier, &id);
+    assert_eq!(
+        f.client().try_issue_receipt(&f.verifier, &id),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+    assert_eq!(
+        f.client().try_reject_lot(&f.verifier, &id, &f.hash()),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+}
+
+#[test]
+fn rejected_lots_are_terminal() {
+    let f = Fixture::new();
+    let id = f.register();
+    f.client().reject_lot(&f.verifier, &id, &f.hash());
+    assert_eq!(
+        f.client().get_lot(&id).physical_status,
+        PhysicalStatus::Rejected
+    );
+    assert_eq!(
+        f.client()
+            .try_verify_lot(&f.verifier, &id, &12_000, &500, &f.hash()),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+    assert_eq!(
+        f.client().try_reject_lot(&f.verifier, &id, &f.hash()),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+}
+
+#[test]
+fn inspections_preserve_mass_balance_and_do_not_revalue_inventory() {
+    let f = Fixture::new();
+    let id = f.receipt();
+    f.client().record_inspection(
+        &f.verifier,
+        &id,
+        &11_900,
+        &690,
+        &InspectionKind::MoistureDrift,
+        &f.hash(),
+    );
+    let before = f.client().get_lot(&id);
+    assert_eq!(before.recorded_losses_kg, 100);
+    assert!(before.moisture_drift);
+    assert_eq!(before.valued_kg, 12_000);
+    f.client().partial_withdraw(&f.owner, &id, &900, &f.hash());
+    let value = f.client().get_lot(&id);
+    assert_eq!(
+        value.initial_verified_kg,
+        value.net_kg + value.withdrawn_kg + value.recorded_losses_kg
+    );
+    assert_eq!(value.valuation, before.valuation);
+    assert_eq!(value.valued_at, before.valued_at);
+    assert_eq!(
+        f.client().try_record_inspection(
+            &f.verifier,
+            &id,
             &12_000,
-            &hash(&self.env, 2),
+            &500,
+            &InspectionKind::Passed,
+            &f.hash()
+        ),
+        Err(Ok(Error::WeightInvalid))
+    );
+    f.client().record_inspection(
+        &f.verifier,
+        &id,
+        &11_000,
+        &500,
+        &InspectionKind::Passed,
+        &f.hash(),
+    );
+    assert!(!f.client().get_lot(&id).moisture_drift);
+}
+
+#[test]
+fn oracle_cannot_duplicate_custody_or_verification_and_amount_must_be_positive() {
+    let f = Fixture::new();
+    let id = f.receipt();
+    for actor in [&f.verifier, &f.custodian] {
+        f.client().grant_role(&f.admin, actor, &Role::PriceOracle);
+        assert_eq!(
+            f.client().try_post_valuation(actor, &id, &10, &f.hash()),
+            Err(Ok(Error::RoleConflict))
         );
     }
+    assert_eq!(
+        f.client().try_post_valuation(&f.oracle, &id, &0, &f.hash()),
+        Err(Ok(Error::AmountInvalid))
+    );
+    assert_eq!(
+        f.client()
+            .try_post_valuation(&f.oracle, &id, &10, &BytesN::from_array(&f.env, &[0; 32])),
+        Err(Ok(Error::EvidenceMissing))
+    );
+}
 
-    fn receipt(&self, lot_id: u64) {
-        self.register(lot_id);
-        self.verify(lot_id);
-        self.client.issue_receipt(&self.verifier, &lot_id);
-        self.client
-            .post_valuation(&self.oracle, &lot_id, &10_000_000_000_i128);
+#[test]
+fn encumbrance_is_exclusive_and_disallows_free_transfers_or_withdrawals() {
+    let f = Fixture::new();
+    let id = f.receipt();
+    f.lock(id);
+    let buyer = Address::generate(&f.env);
+    assert_eq!(f.client().get_lot(&id).loan_id, Some(1));
+    assert_eq!(
+        f.client().try_transfer_receipt(&f.owner, &id, &buyer),
+        Err(Ok(Error::ReceiptLocked))
+    );
+    assert_eq!(
+        f.client()
+            .try_partial_withdraw(&f.owner, &id, &1_000, &f.hash()),
+        Err(Ok(Error::ReceiptLocked))
+    );
+    assert_eq!(
+        f.client().try_withdraw_full(&f.owner, &id, &f.hash()),
+        Err(Ok(Error::ReceiptLocked))
+    );
+    assert!(VaultHarnessClient::new(&f.env, &f.vault)
+        .try_lock(&f.registry, &id, &2, &f.owner)
+        .is_err());
+    assert!(VaultHarnessClient::new(&f.env, &f.vault)
+        .try_unlock(&f.registry, &id, &2)
+        .is_err());
+    VaultHarnessClient::new(&f.env, &f.vault).withdraw(
+        &f.registry,
+        &id,
+        &1,
+        &f.owner,
+        &2_000,
+        &f.hash(),
+    );
+    let value = f.client().get_lot(&id);
+    assert_eq!(value.net_kg, 10_000);
+    assert_eq!(value.receipt_status, ReceiptStatus::Encumbered);
+}
+
+#[test]
+fn impairment_survives_release_and_default_transfer() {
+    let f = Fixture::new();
+    let lender = Address::generate(&f.env);
+    for claim in [false, true] {
+        let id = f.receipt();
+        f.lock(id);
+        f.client()
+            .impair(&f.verifier, &id, &ImpairmentReason::Moisture, &f.hash());
+        assert_eq!(f.client().get_lot(&id).loan_id, Some(1));
+        if claim {
+            VaultHarnessClient::new(&f.env, &f.vault).claim(&f.registry, &id, &1, &lender);
+        } else {
+            VaultHarnessClient::new(&f.env, &f.vault).unlock(&f.registry, &id, &1);
+        }
+        let value = f.client().get_lot(&id);
+        assert_eq!(value.physical_status, PhysicalStatus::Impaired);
+        assert_eq!(value.receipt_status, ReceiptStatus::Receipted);
+        assert_eq!(value.loan_id, None);
+        assert_eq!(
+            value.owner,
+            if claim {
+                lender.clone()
+            } else {
+                f.owner.clone()
+            }
+        );
+        assert_eq!(
+            f.client()
+                .try_post_valuation(&f.oracle, &id, &10, &f.hash()),
+            Err(Ok(Error::LotImpaired))
+        );
     }
 }
 
 #[test]
-fn happy_path_register_verify_receipt_value() {
-    let f = setup();
-    f.receipt(7);
-    let lot = f.client.get_lot(&7);
-    assert_eq!(lot.status, LotStatus::Receipted);
-    assert_eq!(lot.net_kg, 12_000);
-    assert_eq!(lot.moisture_bps, 500);
-    assert_eq!(lot.valuation, 10_000_000_000_i128);
-    assert!(lot.valuation_ts > 0);
-}
-
-#[test]
-fn initialize_twice_fails() {
-    let f = setup();
-    let res = f.client.try_initialize(&f.admin);
-    assert!(matches!(res, Err(Ok(Error::AlreadyInitialized))));
-}
-
-#[test]
-fn register_requires_custodian_role() {
-    let f = setup();
-    let stranger = Address::generate(&f.env);
-    let res = f.client.try_register_lot(
-        &f.owner,
-        &1,
-        &Commodity::YerbaCanchada,
-        &12_000,
-        &stranger,
-        &hash(&f.env, 1),
-    );
-    assert!(matches!(res, Err(Ok(Error::RoleMissing))));
-}
-
-#[test]
-fn register_rejects_lot_below_min_kg() {
-    let f = setup();
-    let res = f.client.try_register_lot(
-        &f.owner,
-        &1,
-        &Commodity::YerbaCanchada,
-        &999,
-        &f.custodian,
-        &hash(&f.env, 1),
-    );
-    assert!(matches!(res, Err(Ok(Error::WeightInvalid))));
-}
-
-#[test]
-fn register_rejects_reused_lot_id() {
-    let f = setup();
-    f.register(1);
-    let res = f.client.try_register_lot(
-        &f.owner,
-        &1,
-        &Commodity::YerbaCanchada,
-        &12_000,
-        &f.custodian,
-        &hash(&f.env, 1),
-    );
-    assert!(matches!(res, Err(Ok(Error::LotExists))));
-}
-
-#[test]
-fn verify_rejects_moisture_out_of_band() {
-    let f = setup();
-    f.register(1);
-    let res = f.client.try_verify_lot(
-        &f.verifier,
-        &f.custodian,
-        &1,
-        &800,
-        &12_000,
-        &hash(&f.env, 2),
-    );
-    assert!(matches!(res, Err(Ok(Error::MoistureOutOfBand))));
-}
-
-#[test]
-fn verify_rejects_zero_evidence_hash() {
-    let f = setup();
-    f.register(1);
-    let res = f.client.try_verify_lot(
-        &f.verifier,
-        &f.custodian,
-        &1,
-        &500,
-        &12_000,
-        &hash(&f.env, 0),
-    );
-    assert!(matches!(res, Err(Ok(Error::EvidenceMissing))));
-}
-
-#[test]
-fn verify_requires_verifier_role() {
-    let f = setup();
-    f.register(1);
-    let stranger = Address::generate(&f.env);
-    let res = f
-        .client
-        .try_verify_lot(&stranger, &f.custodian, &1, &500, &12_000, &hash(&f.env, 2));
-    assert!(matches!(res, Err(Ok(Error::RoleMissing))));
-}
-
-#[test]
-fn verify_rejects_verifier_equal_to_custodian() {
-    let f = setup();
-    f.client.grant_role(&f.custodian, &Role::Verifier);
-    f.register(1);
-    let res = f.client.try_verify_lot(
-        &f.custodian,
-        &f.custodian,
-        &1,
-        &500,
-        &12_000,
-        &hash(&f.env, 2),
-    );
-    assert_eq!(res, Err(Ok(Error::RoleConflict)));
-}
-
-#[test]
-fn verify_twice_fails() {
-    let f = setup();
-    f.register(1);
-    f.verify(1);
-    let res = f.client.try_verify_lot(
-        &f.verifier,
-        &f.custodian,
-        &1,
-        &500,
-        &12_000,
-        &hash(&f.env, 2),
-    );
-    assert!(matches!(res, Err(Ok(Error::InvalidLotStatus))));
-}
-
-#[test]
-fn issue_receipt_requires_verified_status() {
-    let f = setup();
-    f.register(1);
-    let res = f.client.try_issue_receipt(&f.verifier, &1);
-    assert!(matches!(res, Err(Ok(Error::InvalidLotStatus))));
-}
-
-#[test]
-fn issue_receipt_only_by_the_verifying_verifier() {
-    let f = setup();
-    let other = Address::generate(&f.env);
-    f.client.grant_role(&other, &Role::Verifier);
-    f.register(1);
-    f.verify(1);
-    let res = f.client.try_issue_receipt(&other, &1);
-    assert!(matches!(res, Err(Ok(Error::NotAuthorized))));
-}
-
-#[test]
-fn post_valuation_requires_oracle_role() {
-    let f = setup();
-    f.register(1);
-    f.verify(1);
-    f.client.issue_receipt(&f.verifier, &1);
-    let stranger = Address::generate(&f.env);
-    let res = f
-        .client
-        .try_post_valuation(&stranger, &1, &10_000_000_000_i128);
-    assert!(matches!(res, Err(Ok(Error::RoleMissing))));
-}
-
-#[test]
-fn post_valuation_rejects_non_positive() {
-    let f = setup();
-    f.register(1);
-    f.verify(1);
-    f.client.issue_receipt(&f.verifier, &1);
-    let res = f.client.try_post_valuation(&f.oracle, &1, &0i128);
-    assert!(matches!(res, Err(Ok(Error::AmountInvalid))));
-}
-
-#[test]
-fn lock_and_unlock_only_from_configured_vault() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    f.client.set_vault(&vault);
-
-    f.client.lock(&vault, &1);
-    assert_eq!(f.client.lot_status(&1), LotStatus::Encumbered);
-    f.client.unlock(&vault, &1);
-    assert_eq!(f.client.lot_status(&1), LotStatus::Receipted);
-}
-
-#[test]
-fn lock_from_other_address_fails() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    let impostor = Address::generate(&f.env);
-    f.client.set_vault(&vault);
-    let res = f.client.try_lock(&impostor, &1);
-    assert!(matches!(res, Err(Ok(Error::OnlyVault))));
-}
-
-#[test]
-fn lock_before_configured_vault_fails() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    let res = f.client.try_lock(&vault, &1);
-    assert!(matches!(res, Err(Ok(Error::OnlyVault))));
-}
-
-#[test]
-fn transfer_on_default_sets_new_owner_and_clears_encumbrance() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    let lender = Address::generate(&f.env);
-    f.client.set_vault(&vault);
-    f.client.lock(&vault, &1);
-
-    f.client.transfer_on_default(&vault, &1, &lender);
-    let lot = f.client.get_lot(&1);
-    assert_eq!(lot.owner, lender);
-    assert_eq!(lot.status, LotStatus::Receipted);
-}
-
-#[test]
-fn transfer_receipt_moves_ownership_when_unlocked() {
-    let f = setup();
-    f.receipt(1);
+fn free_transfers_require_owner_and_preserve_separation() {
+    let f = Fixture::new();
+    let id = f.receipt();
     let buyer = Address::generate(&f.env);
-    f.client.transfer_receipt(&f.owner, &1, &buyer);
-    assert_eq!(f.client.get_lot(&1).owner, buyer);
-}
-
-#[test]
-fn transfer_receipt_fails_when_encumbered() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    let buyer = Address::generate(&f.env);
-    f.client.set_vault(&vault);
-    f.client.lock(&vault, &1);
-    let res = f.client.try_transfer_receipt(&f.owner, &1, &buyer);
-    assert!(matches!(res, Err(Ok(Error::ReceiptLocked))));
-}
-
-#[test]
-fn transfer_receipt_requires_current_owner() {
-    let f = setup();
-    f.receipt(1);
-    let stranger = Address::generate(&f.env);
-    let buyer = Address::generate(&f.env);
-    let res = f.client.try_transfer_receipt(&stranger, &1, &buyer);
-    assert!(matches!(res, Err(Ok(Error::NotReceiptOwner))));
-}
-
-#[test]
-fn record_inspection_updates_measurements_and_keeps_status() {
-    let f = setup();
-    f.receipt(1);
-    f.client
-        .record_inspection(&f.verifier, &1, &420, &11_500, &hash(&f.env, 3));
-    let lot = f.client.get_lot(&1);
-    assert_eq!(lot.moisture_bps, 420);
-    assert_eq!(lot.net_kg, 11_500);
-    assert_eq!(lot.status, LotStatus::Receipted);
-}
-
-#[test]
-fn impair_requires_verifier_and_sets_impaired() {
-    let f = setup();
-    f.receipt(1);
-    let stranger = Address::generate(&f.env);
-    let res = f.client.try_impair(&stranger, &1);
-    assert!(matches!(res, Err(Ok(Error::RoleMissing))));
-    f.client.impair(&f.verifier, &1);
-    assert_eq!(f.client.lot_status(&1), LotStatus::Impaired);
-}
-
-#[test]
-fn confirm_sale_records_buyer_hash() {
-    let f = setup();
-    f.receipt(1);
-    f.client.confirm_sale(&f.verifier, &1, &hash(&f.env, 9));
-    assert_eq!(f.client.get_lot(&1).sale_hash, Some(hash(&f.env, 9)));
-}
-
-#[test]
-fn partial_withdraw_reduces_kg_and_requires_owner() {
-    let f = setup();
-    f.receipt(1);
-    f.client
-        .partial_withdraw(&f.custodian, &f.owner, &1, &2_000, &hash(&f.env, 4));
-    assert_eq!(f.client.get_lot(&1).net_kg, 10_000);
-
-    let stranger = Address::generate(&f.env);
-    let res = f
-        .client
-        .try_partial_withdraw(&f.custodian, &stranger, &1, &1_000, &hash(&f.env, 4));
-    assert!(matches!(res, Err(Ok(Error::NotReceiptOwner))));
-}
-
-#[test]
-fn partial_withdraw_rejects_full_or_zero() {
-    let f = setup();
-    f.receipt(1);
-    let zero = f
-        .client
-        .try_partial_withdraw(&f.custodian, &f.owner, &1, &0, &hash(&f.env, 4));
-    assert!(matches!(zero, Err(Ok(Error::WeightInvalid))));
-    let all = f
-        .client
-        .try_partial_withdraw(&f.custodian, &f.owner, &1, &12_000, &hash(&f.env, 4));
-    assert!(matches!(all, Err(Ok(Error::WeightInvalid))));
-}
-
-#[test]
-fn withdraw_full_closes_lot_when_unlocked() {
-    let f = setup();
-    f.receipt(1);
-    f.client.withdraw_full(&f.custodian, &f.owner, &1);
-    let lot = f.client.get_lot(&1);
-    assert_eq!(lot.status, LotStatus::Closed);
-    assert_eq!(lot.net_kg, 0);
-}
-
-#[test]
-fn withdraw_full_fails_when_encumbered() {
-    let f = setup();
-    f.receipt(1);
-    let vault = Address::generate(&f.env);
-    f.client.set_vault(&vault);
-    f.client.lock(&vault, &1);
-    let res = f.client.try_withdraw_full(&f.custodian, &f.owner, &1);
-    assert!(matches!(res, Err(Ok(Error::ReceiptLocked))));
-}
-
-#[test]
-fn set_params_validates_band_and_bounds() {
-    use crate::Params;
-    let f = setup();
-    let bad = Params {
-        moisture_min_bps: 800,
-        moisture_max_bps: 300,
-        min_lot_kg: 1_000,
-    };
-    let res = f.client.try_set_params(&bad);
-    assert!(matches!(res, Err(Ok(Error::ParamOutOfBounds))));
-
-    let too_high = Params {
-        moisture_min_bps: 300,
-        moisture_max_bps: 2_500,
-        min_lot_kg: 1_000,
-    };
-    let res = f.client.try_set_params(&too_high);
-    assert!(matches!(res, Err(Ok(Error::ParamOutOfBounds))));
-
-    let ok = Params {
-        moisture_min_bps: 300,
-        moisture_max_bps: 600,
-        min_lot_kg: 2_000,
-    };
-    f.client.set_params(&ok);
-    assert_eq!(f.client.get_params().min_lot_kg, 2_000);
-}
-
-#[test]
-fn grant_and_revoke_role() {
-    let f = setup();
-    let acc = Address::generate(&f.env);
-    assert!(!f.client.has_role(&acc, &Role::Verifier));
-    f.client.grant_role(&acc, &Role::Verifier);
-    assert!(f.client.has_role(&acc, &Role::Verifier));
-    f.client.revoke_role(&acc, &Role::Verifier);
-    assert!(!f.client.has_role(&acc, &Role::Verifier));
-}
-
-#[test]
-fn unknown_lot_lookup_fails() {
-    let f = setup();
-    let res = f.client.try_get_lot(&42);
-    assert!(matches!(res, Err(Ok(Error::LotNotFound))));
-}
-
-#[test]
-fn events_are_emitted_on_register_and_verify() {
-    use soroban_sdk::testutils::Events as _;
-    let f = setup();
-    // `events().all()` returns events from the last invocation only.
-    f.register(1);
-    assert_eq!(f.env.events().all().events().len(), 1);
-    f.verify(1);
-    assert_eq!(f.env.events().all().events().len(), 1);
-    // A failed invocation publishes no events.
-    let _ = f.client.try_verify_lot(
-        &f.verifier,
-        &f.custodian,
-        &1,
-        &500,
-        &12_000,
-        &hash(&f.env, 2),
+    assert_eq!(
+        f.client().try_transfer_receipt(&buyer, &id, &buyer),
+        Err(Ok(Error::NotReceiptOwner))
     );
-    assert_eq!(f.env.events().all().events().len(), 0);
+    assert_eq!(
+        f.client().try_transfer_receipt(&f.owner, &id, &f.owner),
+        Err(Ok(Error::InvalidAddress))
+    );
+    assert_eq!(
+        f.client().try_transfer_receipt(&f.owner, &id, &f.custodian),
+        Err(Ok(Error::RoleConflict))
+    );
+    f.client().transfer_receipt(&f.owner, &id, &buyer);
+    assert_eq!(f.client().get_lot(&id).owner, buyer);
+    assert_eq!(f.client().get_lot(&id).original_borrower, f.owner);
 }
 
 #[test]
-fn verify_after_time_travel_still_valid() {
-    let f = setup();
-    f.register(1);
-    f.env.ledger().with_mut(|l| l.timestamp += 86_400);
-    f.verify(1);
-    assert_eq!(f.client.lot_status(&1), LotStatus::Verified);
+fn withdrawals_cannot_overdraw_or_break_minimum_and_closure_is_terminal() {
+    let f = Fixture::new();
+    let id = f.receipt();
+    for kg in [0u64, 12_000, 11_001] {
+        assert_eq!(
+            f.client()
+                .try_partial_withdraw(&f.owner, &id, &kg, &f.hash()),
+            Err(Ok(Error::WeightInvalid))
+        );
+    }
+    f.client()
+        .partial_withdraw(&f.owner, &id, &11_000, &f.hash());
+    assert_eq!(f.client().get_lot(&id).net_kg, 1_000);
+    f.client().withdraw_full(&f.owner, &id, &f.hash());
+    let value = f.client().get_lot(&id);
+    assert_eq!(value.physical_status, PhysicalStatus::Closed);
+    assert_eq!(value.receipt_status, ReceiptStatus::Retired);
+    assert_eq!(value.net_kg, 0);
+    assert_eq!(value.withdrawn_kg, 12_000);
+    assert_eq!(
+        f.client().try_withdraw_full(&f.owner, &id, &f.hash()),
+        Err(Ok(Error::InvalidLotStatus))
+    );
+}
+
+#[test]
+fn policy_bounds_are_checked_without_changing_existing_lots() {
+    let f = Fixture::new();
+    let id = f.receipt();
+    for params in [
+        RegistryParams {
+            moisture_min_bps: 700,
+            moisture_max_bps: 700,
+            min_lot_kg: 1_000,
+        },
+        RegistryParams {
+            moisture_min_bps: 0,
+            moisture_max_bps: 2_001,
+            min_lot_kg: 1_000,
+        },
+        RegistryParams {
+            moisture_min_bps: 300,
+            moisture_max_bps: 700,
+            min_lot_kg: 0,
+        },
+    ] {
+        assert_eq!(
+            f.client().try_set_params(&f.admin, &params),
+            Err(Ok(Error::ParamOutOfBounds))
+        );
+    }
+    assert_eq!(f.client().get_lot(&id).moisture_bps, 500);
+    assert_eq!(f.client().try_get_lot(&999), Err(Ok(Error::LotNotFound)));
+}
+
+#[test]
+fn every_user_mutation_requires_real_authorization_before_business_checks() {
+    let f = Fixture::new();
+    let id = f.register();
+    let client = f.client();
+    let outsider = Address::generate(&f.env);
+    macro_rules! denied {
+        ($call:expr) => {
+            assert!(
+                matches!($call, Err(Err(_))),
+                "missing auth must be a host rejection"
+            );
+        };
+    }
+    f.env.set_auths(&[]);
+    denied!(client.try_grant_role(&f.admin, &outsider, &Role::Verifier));
+    denied!(client.try_revoke_role(&f.admin, &f.verifier, &Role::Verifier));
+    denied!(client.try_set_params(&f.admin, &RegistryParams::default()));
+    denied!(client.try_bind_vault(&f.admin, &f.vault));
+    denied!(client.try_register_lot(
+        &f.owner,
+        &f.custodian,
+        &Symbol::new(&f.env, "YERBA_CANCHADA"),
+        &12_000,
+        &f.hash(),
+        &AgingMethod::Natural,
+        &0,
+        &f.hash()
+    ));
+    denied!(client.try_verify_lot(&f.verifier, &id, &12_000, &500, &f.hash()));
+    denied!(client.try_reject_lot(&f.verifier, &id, &f.hash()));
+    f.env.mock_all_auths();
+    client.verify_lot(&f.verifier, &id, &12_000, &500, &f.hash());
+    f.env.set_auths(&[]);
+    denied!(client.try_issue_receipt(&f.verifier, &id));
+    f.env.mock_all_auths();
+    client.issue_receipt(&f.verifier, &id);
+    f.env.set_auths(&[]);
+    denied!(client.try_post_valuation(&f.oracle, &id, &10, &f.hash()));
+    denied!(client.try_record_inspection(
+        &f.verifier,
+        &id,
+        &12_000,
+        &500,
+        &InspectionKind::Passed,
+        &f.hash()
+    ));
+    denied!(client.try_impair(&f.verifier, &id, &ImpairmentReason::Fire, &f.hash()));
+    denied!(client.try_transfer_receipt(&f.owner, &id, &outsider));
+    denied!(client.try_partial_withdraw(&f.owner, &id, &1_000, &f.hash()));
+    denied!(client.try_withdraw_full(&f.owner, &id, &f.hash()));
+    denied!(client.try_lock(&id, &1, &f.owner));
+    f.env.mock_all_auths();
+    f.lock(id);
+    f.env.set_auths(&[]);
+    denied!(client.try_unlock(&id, &1));
+    denied!(client.try_transfer_on_default(&id, &1, &outsider));
+    denied!(client.try_withdraw_encumbered(&id, &1, &f.owner, &1_000, &f.hash()));
+    let value = client.get_lot(&id);
+    assert_eq!(value.receipt_status, ReceiptStatus::Encumbered);
+    assert_eq!(value.physical_status, PhysicalStatus::Verified);
+    assert_eq!(value.net_kg, 12_000);
 }

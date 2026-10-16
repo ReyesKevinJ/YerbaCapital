@@ -1,24 +1,35 @@
-use crate::{errors::Error, storage};
+use crate::{
+    errors::Error,
+    storage,
+    types::{Lot, Role},
+};
 use soroban_sdk::{Address, Env};
-use yerbacapital_shared::Role;
 
-pub fn has_role(env: &Env, account: &Address, role: Role) -> bool {
-    storage::has_role(env, account, role)
+pub fn admin(env: &Env, actor: &Address) -> Result<(), Error> {
+    actor.require_auth();
+    if *actor != storage::admin(env) {
+        return Err(Error::NotAuthorized);
+    }
+    Ok(())
 }
 
-/// Errors with [`Error::RoleMissing`] when `account` does not hold `role`.
-/// Callers must have already invoked `require_auth` on `account`.
-pub fn require_role(env: &Env, account: &Address, role: Role) -> Result<(), Error> {
-    if !has_role(env, account, role) {
+pub fn role(env: &Env, actor: &Address, role: Role) -> Result<(), Error> {
+    if !storage::has_role(env, actor, role) {
         return Err(Error::RoleMissing);
     }
     Ok(())
 }
 
-pub fn grant(env: &Env, account: &Address, role: Role) {
-    storage::set_role(env, account, role, true);
+pub fn verifier(env: &Env, actor: &Address, lot: &Lot) -> Result<(), Error> {
+    role(env, actor, Role::Verifier)?;
+    if *actor == lot.custodian || *actor == lot.original_borrower || *actor == lot.owner {
+        return Err(Error::RoleConflict);
+    }
+    Ok(())
 }
 
-pub fn revoke(env: &Env, account: &Address, role: Role) {
-    storage::set_role(env, account, role, false);
+pub fn vault(env: &Env) -> Result<Address, Error> {
+    let address = storage::vault(env).ok_or(Error::VaultNotConfigured)?;
+    address.require_auth();
+    Ok(address)
 }

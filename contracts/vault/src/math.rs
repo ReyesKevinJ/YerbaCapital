@@ -1,27 +1,118 @@
-//! Collateral and interest math. Integer-only, multiply before divide, and
-//! round against the beneficiary: `max_principal` rounds down, debt rounds up
-//! (AGENTS.md §8.2, `docs/contract-spec.md` §7.8).
+use crate::{
+    registry::{Lot, PhysicalStatus, RegistryParams},
+    types::VaultParams,
+    Error,
+};
 
-pub const BPS_DENOM: i128 = 10_000;
-pub const SECONDS_PER_YEAR: i128 = 31_536_000;
+pub const YEAR_SECONDS: i128 = 31_536_000;
+const BPS: i128 = 10_000;
 
-/// Applies the haircut to a posted valuation.
-pub fn collateral_value(valuation: i128, haircut_bps: u32) -> Option<i128> {
-    let keep = BPS_DENOM.checked_sub(haircut_bps as i128)?;
-    valuation.checked_mul(keep)?.checked_div(BPS_DENOM)
+pub fn interest(principal: i128, rate_bps: u32, elapsed: u64) -> Result<i128, Error> {
+    if principal < 0 {
+        return Err(Error::AmountInvalid);
+    }
+    let numerator = principal
+        .checked_mul(i128::from(rate_bps))
+        .and_then(|n| n.checked_mul(i128::from(elapsed)))
+        .ok_or(Error::MathOverflow)?;
+    let denominator = BPS.checked_mul(YEAR_SECONDS).ok_or(Error::MathOverflow)?;
+    let quotient = numerator
+        .checked_div(denominator)
+        .ok_or(Error::MathOverflow)?;
+    if numerator
+        .checked_rem(denominator)
+        .ok_or(Error::MathOverflow)?
+        == 0
+    {
+        Ok(quotient)
+    } else {
+        quotient.checked_add(1).ok_or(Error::MathOverflow)
+    }
 }
 
-/// Maximum principal a valuation supports; rounds down (against the borrower).
-pub fn max_principal(valuation: i128, haircut_bps: u32, max_ltv_bps: u32) -> Option<i128> {
-    let cv = collateral_value(valuation, haircut_bps)?;
-    cv.checked_mul(max_ltv_bps as i128)?.checked_div(BPS_DENOM)
+pub fn capacity(
+    lot: &Lot,
+    remaining_kg: u64,
+    params: &VaultParams,
+    quality: &RegistryParams,
+    now: u64,
+) -> Result<i128, Error> {
+    if lot.physical_status == PhysicalStatus::Impaired {
+        return Err(Error::LotImpaired);
+    }
+    if lot.physical_status != PhysicalStatus::Verified {
+        return Err(Error::InvalidLotStatus);
+    }
+    if remaining_kg < quality.min_lot_kg || remaining_kg > lot.net_kg {
+        return Err(Error::WeightInvalid);
+    }
+    if lot.moisture_bps < quality.moisture_min_bps || lot.moisture_bps > quality.moisture_max_bps {
+        return Err(Error::MoistureOutOfBand);
+    }
+    if lot.valuation <= 0 || lot.valued_kg == 0 {
+        return Err(Error::AmountInvalid);
+    }
+    let age = now
+        .checked_sub(lot.valued_at)
+        .ok_or(Error::ValuationStale)?;
+    if age > params.valuation_max_age_secs {
+        return Err(Error::ValuationStale);
+    }
+    let distance_low = lot
+        .moisture_bps
+        .checked_sub(quality.moisture_min_bps)
+        .ok_or(Error::MathOverflow)?;
+    let distance_high = quality
+        .moisture_max_bps
+        .checked_sub(lot.moisture_bps)
+        .ok_or(Error::MathOverflow)?;
+    let edge =
+        distance_low <= params.moisture_edge_bps || distance_high <= params.moisture_edge_bps;
+    let mut haircut = params.base_haircut_bps;
+    if edge {
+        haircut = haircut
+            .checked_add(params.edge_risk_bps)
+            .ok_or(Error::MathOverflow)?;
+    }
+    if lot.moisture_drift {
+        haircut = haircut
+            .checked_add(params.drift_risk_bps)
+            .ok_or(Error::MathOverflow)?;
+    }
+    let retained = 10_000u32
+        .checked_sub(haircut)
+        .ok_or(Error::ParamOutOfBounds)?;
+    let value = lot
+        .valuation
+        .checked_mul(i128::from(remaining_kg))
+        .and_then(|n| n.checked_div(i128::from(lot.valued_kg)))
+        .ok_or(Error::MathOverflow)?;
+    let adjusted = value
+        .checked_mul(i128::from(retained))
+        .and_then(|n| n.checked_div(BPS))
+        .ok_or(Error::MathOverflow)?;
+    adjusted
+        .checked_mul(i128::from(params.max_ltv_bps))
+        .and_then(|n| n.checked_div(BPS))
+        .ok_or(Error::MathOverflow)
 }
 
-/// Simple interest over `dt` seconds; rounds up (against the borrower).
-pub fn interest(outstanding: i128, rate_bps: u32, dt: u64) -> Option<i128> {
-    let numer = outstanding
-        .checked_mul(rate_bps as i128)?
-        .checked_mul(dt as i128)?;
-    let denom = BPS_DENOM.checked_mul(SECONDS_PER_YEAR)?;
-    numer.checked_add(denom.checked_sub(1)?)?.checked_div(denom)
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn interest_rounds_up_and_never_capitalizes_or_wraps() {
+        assert_eq!(
+            interest(50_000_000_000, 1_200, 7_884_000),
+            Ok(1_500_000_000)
+        );
+        assert_eq!(interest(1, 1, 1), Ok(1));
+        assert_eq!(interest(1, 0, 1), Ok(0));
+        assert_eq!(interest(1, 1, 0), Ok(0));
+        assert_eq!(interest(-1, 1, 1), Err(Error::AmountInvalid));
+        assert_eq!(
+            interest(i128::MAX, 10_000, u64::MAX),
+            Err(Error::MathOverflow)
+        );
+    }
 }

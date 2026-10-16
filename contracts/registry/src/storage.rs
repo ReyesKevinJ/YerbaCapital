@@ -1,87 +1,101 @@
+use crate::{
+    errors::Error,
+    types::{Lot, RegistryParams, Role},
+};
 use soroban_sdk::{contracttype, Address, Env};
-use yerbacapital_shared::{Lot, Params, Role};
 
-/// ~30 days at 5s ledgers; records that live longer are topped up on write (AGENTS.md §8.4).
-pub const DAY_IN_LEDGERS: u32 = 17_280;
-pub const TTL_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS;
-pub const TTL_EXTEND_TO: u32 = 120 * DAY_IN_LEDGERS;
+const TTL_THRESHOLD: u32 = 30 * 17_280;
+const TTL_EXTEND_TO: u32 = 120 * 17_280;
 
 #[contracttype]
-pub enum DataKey {
+#[derive(Clone)]
+pub(crate) enum Key {
     Admin,
     Vault,
     Params,
+    NextLot,
     Role(Address, Role),
     Lot(u64),
 }
 
-fn bump_instance(env: &Env) {
+pub fn touch(env: &Env) {
     env.storage()
         .instance()
         .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
 }
 
-pub fn has_admin(env: &Env) -> bool {
-    env.storage().instance().has(&DataKey::Admin)
-}
-
-pub fn set_admin(env: &Env, admin: &Address) {
-    env.storage().instance().set(&DataKey::Admin, admin);
-    bump_instance(env);
-}
-
-pub fn get_admin(env: &Env) -> Option<Address> {
-    env.storage().instance().get(&DataKey::Admin)
-}
-
-pub fn set_params(env: &Env, params: &Params) {
-    env.storage().instance().set(&DataKey::Params, params);
-    bump_instance(env);
-}
-
-pub fn get_params(env: &Env) -> Params {
+pub fn admin(env: &Env) -> Address {
+    touch(env);
     env.storage()
         .instance()
-        .get(&DataKey::Params)
-        .unwrap_or_else(yerbacapital_shared::default_params)
+        .get(&Key::Admin)
+        .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, Error::NotAuthorized))
 }
 
-pub fn set_vault(env: &Env, vault: &Address) {
-    env.storage().instance().set(&DataKey::Vault, vault);
-    bump_instance(env);
+pub fn vault(env: &Env) -> Option<Address> {
+    touch(env);
+    env.storage().instance().get(&Key::Vault)
 }
 
-pub fn get_vault(env: &Env) -> Option<Address> {
-    env.storage().instance().get(&DataKey::Vault)
+pub fn params(env: &Env) -> RegistryParams {
+    touch(env);
+    env.storage()
+        .instance()
+        .get(&Key::Params)
+        .unwrap_or_default()
 }
 
-pub fn set_role(env: &Env, account: &Address, role: Role, enabled: bool) {
-    let key = DataKey::Role(account.clone(), role);
-    env.storage().persistent().set(&key, &enabled);
+pub fn has_role(env: &Env, address: &Address, role: Role) -> bool {
+    touch(env);
+    let key = Key::Role(address.clone(), role);
+    let result = env.storage().persistent().get(&key).unwrap_or(false);
+    if result {
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+    }
+    result
+}
+
+pub fn set_role(env: &Env, address: &Address, role: Role, granted: bool) {
+    let key = Key::Role(address.clone(), role);
+    if granted {
+        env.storage().persistent().set(&key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+    } else {
+        env.storage().persistent().remove(&key);
+    }
+    touch(env);
+}
+
+pub fn lot(env: &Env, id: u64) -> Result<Lot, Error> {
+    touch(env);
+    let key = Key::Lot(id);
+    let value = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .ok_or(Error::LotNotFound)?;
     env.storage()
         .persistent()
         .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+    Ok(value)
 }
 
-pub fn has_role(env: &Env, account: &Address, role: Role) -> bool {
-    env.storage()
-        .persistent()
-        .get(&DataKey::Role(account.clone(), role))
-        .unwrap_or(false)
-}
-
-pub fn has_lot(env: &Env, lot_id: u64) -> bool {
-    env.storage().persistent().has(&DataKey::Lot(lot_id))
-}
-
-pub fn set_lot(env: &Env, lot: &Lot) {
-    let key = DataKey::Lot(lot.lot_id);
+pub fn put_lot(env: &Env, lot: &Lot) {
+    let key = Key::Lot(lot.id);
     env.storage().persistent().set(&key, lot);
     env.storage()
         .persistent()
         .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+    touch(env);
 }
 
-pub fn get_lot(env: &Env, lot_id: u64) -> Option<Lot> {
-    env.storage().persistent().get(&DataKey::Lot(lot_id))
+pub fn next_id(env: &Env) -> Result<u64, Error> {
+    let current: u64 = env.storage().instance().get(&Key::NextLot).unwrap_or(1);
+    let next = current.checked_add(1).ok_or(Error::MathOverflow)?;
+    env.storage().instance().set(&Key::NextLot, &next);
+    Ok(current)
 }

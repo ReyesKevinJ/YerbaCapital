@@ -1,22 +1,15 @@
 [package]
 name = "yerbacapital-vault"
-description = "YerbaCapital vault: USDC loans against registry receipts, LTV/haircut, interest and default (pass-through, ADR-003)."
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-publish.workspace = true
+version = "0.3.0"
+edition = "2021"
+publish = false
 
 [lib]
-# See contracts/registry/Cargo.toml: `stellar contract build` overrides crate-type
-# for the wasm artifact; Windows hosts cannot link a test cdylib.
-crate-type = ["rlib"]
+crate-type = ["lib", "cdylib"]
+doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
-# Only shared types/interfaces: depending on the registry *contract* crate would
-# pull its exported symbols into this wasm and fail to link.
-yerbacapital-shared = { path = "../shared" }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
-yerbacapital-registry = { path = "../registry" }

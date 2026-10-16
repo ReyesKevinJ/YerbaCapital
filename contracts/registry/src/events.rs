@@ -1,139 +1,145 @@
-use soroban_sdk::{contractevent, Address, BytesN};
-use yerbacapital_shared::{Commodity, Role};
+use crate::types::{Lot, RegistryParams, Role};
+use soroban_sdk::{contractevent, Address, Symbol};
 
-// Event names and topics are a stable API (AGENTS.md §6): append only.
-
-#[contractevent]
+#[contractevent(topics = ["LotRegistered"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LotRegistered {
     #[topic]
     pub lot_id: u64,
-    pub owner: Address,
-    pub commodity: Commodity,
-    pub net_kg: u64,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["LotVerified"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LotVerified {
     #[topic]
     pub lot_id: u64,
-    pub verifier: Address,
-    pub custodian: Address,
-    pub moisture_bps: u32,
-    pub net_kg: u64,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["LotRejected"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LotRejected {
     #[topic]
     pub lot_id: u64,
-    pub verifier: Address,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["ReceiptIssued"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReceiptIssued {
     #[topic]
     pub lot_id: u64,
-    pub owner: Address,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ReceiptTransferred {
-    #[topic]
-    pub lot_id: u64,
-    pub from: Address,
-    pub to: Address,
-}
-
-#[contractevent]
+#[contractevent(topics = ["ValuationPosted"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValuationPosted {
     #[topic]
     pub lot_id: u64,
-    pub oracle: Address,
-    pub valuation: i128,
+    pub lot: Lot,
     pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["InspectionRecorded"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InspectionRecorded {
     #[topic]
     pub lot_id: u64,
-    pub verifier: Address,
-    pub moisture_bps: u32,
-    pub net_kg: u64,
-    pub evidence_hash: BytesN<32>,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["LotImpaired"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LotImpaired {
     #[topic]
     pub lot_id: u64,
-    pub verifier: Address,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["PartialWithdrawal"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PartialWithdrawal {
     #[topic]
     pub lot_id: u64,
-    pub remaining_kg: u64,
-    pub evidence_hash: BytesN<32>,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SaleConfirmed {
-    #[topic]
-    pub lot_id: u64,
-    pub buyer_hash: BytesN<32>,
-}
-
-#[contractevent]
+#[contractevent(topics = ["LotClosed"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LotClosed {
     #[topic]
     pub lot_id: u64,
+    pub lot: Lot,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["ReceiptTransferred"])]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReceiptTransferred {
+    #[topic]
+    pub lot_id: u64,
+    pub previous_owner: Address,
+    pub new_owner: Address,
+    pub loan_id: Option<u64>,
+    pub by_default: bool,
+    pub timestamp: u64,
+}
+
+#[contractevent(topics = ["CollateralLocked"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CollateralLocked {
     #[topic]
     pub lot_id: u64,
+    #[topic]
+    pub loan_id: u64,
+    pub owner: Address,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["CollateralUnlocked"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CollateralUnlocked {
     #[topic]
     pub lot_id: u64,
+    #[topic]
+    pub loan_id: u64,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["RoleGranted"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RoleGranted {
-    #[topic]
-    pub account: Address,
+    pub actor: Address,
+    pub address: Address,
     pub role: Role,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["RoleRevoked"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RoleRevoked {
-    #[topic]
-    pub account: Address,
+    pub actor: Address,
+    pub address: Address,
     pub role: Role,
+    pub timestamp: u64,
 }
 
-#[contractevent]
+#[contractevent(topics = ["ParamsUpdated"])]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ParamsUpdated {
+    #[topic]
+    pub policy: Symbol,
     pub admin: Address,
+    pub params: RegistryParams,
+    pub vault: Option<Address>,
+    pub timestamp: u64,
 }

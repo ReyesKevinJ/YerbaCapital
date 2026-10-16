@@ -7,6 +7,11 @@ target/
 .env.*
 !.env.example
 .evidence/
+.stellar/
+.indexer/
 *.pem
 *.key
 .DS_Store
+*.tsbuildinfo
+playwright-report/
+test-results/

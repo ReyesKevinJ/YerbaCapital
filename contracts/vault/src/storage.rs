@@ -1,84 +1,61 @@
-use crate::types::{Config, Loan};
+use crate::{
+    types::{Loan, VaultConfig, VaultParams},
+    Error,
+};
 use soroban_sdk::{contracttype, Env};
 
-pub const DAY_IN_LEDGERS: u32 = 17_280;
-pub const TTL_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS;
-pub const TTL_EXTEND_TO: u32 = 120 * DAY_IN_LEDGERS;
-
+const THRESHOLD: u32 = 30 * 17_280;
+const EXTEND_TO: u32 = 120 * 17_280;
 #[contracttype]
-pub enum DataKey {
-    Admin,
+#[derive(Clone)]
+pub(crate) enum Key {
     Config,
-    NextLoanId,
+    Params,
+    NextLoan,
     Loan(u64),
-    LotLoan(u64),
 }
 
-pub fn has_admin(env: &Env) -> bool {
-    env.storage().instance().has(&DataKey::Admin)
+pub fn touch(env: &Env) {
+    env.storage().instance().extend_ttl(THRESHOLD, EXTEND_TO);
 }
-
-pub fn set_admin(env: &Env, admin: &soroban_sdk::Address) {
-    env.storage().instance().set(&DataKey::Admin, admin);
-    bump_instance(env);
-}
-
-pub fn get_admin(env: &Env) -> Option<soroban_sdk::Address> {
-    env.storage().instance().get(&DataKey::Admin)
-}
-
-fn bump_instance(env: &Env) {
+pub fn config(env: &Env) -> VaultConfig {
+    touch(env);
     env.storage()
         .instance()
-        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+        .get(&Key::Config)
+        .unwrap_or_else(|| soroban_sdk::panic_with_error!(env, Error::NotAuthorized))
 }
-
-pub fn set_config(env: &Env, config: &Config) {
-    env.storage().instance().set(&DataKey::Config, config);
-    bump_instance(env);
+pub fn params(env: &Env) -> VaultParams {
+    touch(env);
+    env.storage()
+        .instance()
+        .get(&Key::Params)
+        .unwrap_or_default()
 }
-
-pub fn get_config(env: &Env) -> Option<Config> {
-    env.storage().instance().get(&DataKey::Config)
-}
-
-pub fn next_loan_id(env: &Env) -> u64 {
-    let id: u64 = env
+pub fn loan(env: &Env, id: u64) -> Result<Loan, Error> {
+    touch(env);
+    let key = Key::Loan(id);
+    let value = env
         .storage()
-        .instance()
-        .get(&DataKey::NextLoanId)
-        .unwrap_or(0);
+        .persistent()
+        .get(&key)
+        .ok_or(Error::LoanNotFound)?;
     env.storage()
-        .instance()
-        .set(&DataKey::NextLoanId, &(id + 1));
-    bump_instance(env);
-    id
+        .persistent()
+        .extend_ttl(&key, THRESHOLD, EXTEND_TO);
+    Ok(value)
 }
-
-pub fn set_loan(env: &Env, loan: &Loan) {
-    let key = DataKey::Loan(loan.loan_id);
+pub fn put(env: &Env, loan: &Loan) {
+    let key = Key::Loan(loan.id);
     env.storage().persistent().set(&key, loan);
     env.storage()
         .persistent()
-        .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
+        .extend_ttl(&key, THRESHOLD, EXTEND_TO);
+    touch(env);
 }
-
-pub fn get_loan(env: &Env, loan_id: u64) -> Option<Loan> {
-    env.storage().persistent().get(&DataKey::Loan(loan_id))
-}
-
-pub fn set_lot_loan(env: &Env, lot_id: u64, loan_id: u64) {
-    let key = DataKey::LotLoan(lot_id);
-    env.storage().persistent().set(&key, &loan_id);
-    env.storage()
-        .persistent()
-        .extend_ttl(&key, TTL_THRESHOLD, TTL_EXTEND_TO);
-}
-
-pub fn get_lot_loan(env: &Env, lot_id: u64) -> Option<u64> {
-    env.storage().persistent().get(&DataKey::LotLoan(lot_id))
-}
-
-pub fn clear_lot_loan(env: &Env, lot_id: u64) {
-    env.storage().persistent().remove(&DataKey::LotLoan(lot_id));
+pub fn next_id(env: &Env) -> Result<u64, Error> {
+    let id: u64 = env.storage().instance().get(&Key::NextLoan).unwrap_or(1);
+    let next = id.checked_add(1).ok_or(Error::MathOverflow)?;
+    env.storage().instance().set(&Key::NextLoan, &next);
+    Ok(id)
 }

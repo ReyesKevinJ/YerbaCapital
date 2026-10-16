@@ -2067,26 +2067,16 @@ dependencies = [
 
 [[package]]
 name = "yerbacapital-registry"
-version = "0.1.0"
-dependencies = [
- "soroban-sdk",
- "yerbacapital-shared",
-]
-
-[[package]]
-name = "yerbacapital-shared"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "soroban-sdk",
 ]
 
 [[package]]
 name = "yerbacapital-vault"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "soroban-sdk",
- "yerbacapital-registry",
- "yerbacapital-shared",
 ]
 
 [[package]]

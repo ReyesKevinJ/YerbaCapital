@@ -3,7 +3,20 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
-  evidence:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.92.0
+          components: rustfmt, clippy
+          targets: wasm32v1-none
+      - uses: Swatinem/rust-cache@v2
+      - run: bash scripts/install-stellar-ci.sh
+      - run: bash scripts/check-contracts.sh
+      - run: bash scripts/bindings.sh --check
+  workspace:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,6 +26,10 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm setup:local
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
+      - run: pnpm build
+      - run: pnpm --filter app exec playwright install --with-deps chromium
+      - run: pnpm test:e2e

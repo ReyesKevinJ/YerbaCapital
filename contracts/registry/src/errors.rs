@@ -1,8 +1,7 @@
 use soroban_sdk::contracterror;
 
-/// Stable, append-only error codes shared with `docs/contract-spec.md` §7.7.
 #[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Error {
     AlreadyInitialized = 1,
@@ -16,10 +15,21 @@ pub enum Error {
     EvidenceMissing = 9,
     ReceiptLocked = 10,
     NotReceiptOwner = 11,
+    LotImpaired = 12,
+    ValuationStale = 13,
+    ExceedsMaxPrincipal = 14,
+    LoanNotFound = 15,
+    InvalidLoanStatus = 16,
+    NotMatured = 17,
     AmountInvalid = 18,
+    MathOverflow = 19,
     ParamOutOfBounds = 20,
+    Paused = 21,
     WithdrawalBreaksLtv = 22,
     OnlyVault = 23,
     UnsupportedCommodity = 24,
-    LotExists = 25,
+    VaultNotConfigured = 25,
+    VaultAlreadyConfigured = 26,
+    InvalidDuration = 27,
+    InvalidAddress = 28,
 }

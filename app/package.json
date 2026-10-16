@@ -1,0 +1,39 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../scripts/run-app.mjs dev",
+    "build": "node ../scripts/run-app.mjs build",
+    "start": "node ../scripts/run-app.mjs start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test e2e playwright.config.ts playwright.testnet.config.ts next.config.mjs",
+    "test": "tsx --test test/*.test.ts",
+    "test:e2e": "playwright test",
+    "test:testnet": "playwright test --config playwright.testnet.config.ts",
+    "build:host": "next build"
+  },
+  "dependencies": {
+    "@stellar/freighter-api": "6.0.1",
+    "@stellar/stellar-sdk": "16.0.1",
+    "buffer": "6.0.3",
+    "lucide-react": "0.468.0",
+    "next": "^16.4.2",
+    "qrcode.react": "4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "registry-client": "workspace:^",
+    "settlement-client": "workspace:^",
+    "vault-client": "workspace:^"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/pngjs": "6.0.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
+    "tsx": "^4.23.15"
+  }
+}
