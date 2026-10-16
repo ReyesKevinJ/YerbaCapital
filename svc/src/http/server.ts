@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { ServiceConfig } from "../config/environment.js";
 import { EvidenceIntegrityError, EvidenceStore } from "../storage/evidence-store.js";
+import { readHistory } from "../indexer/store.js";
 
 class RequestError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
@@ -49,6 +50,13 @@ export function createEvidenceServer(config: ServiceConfig) {
     if (!timingSafeEqual(tokenDigest, provided)) {
       response.setHeader("WWW-Authenticate", "Bearer");
       throw new RequestError(401, "Evidence access requires authorization.");
+    }
+    const historyMatch = /^\/lots\/([1-9]\d*)\/history$/.exec(url.pathname);
+    if (request.method === "GET" && historyMatch) {
+      const history = config.historyPath ? await readHistory(config.historyPath) : undefined;
+      if (!history) throw new RequestError(503, "Indexer is not initialized.");
+      json(response, 200, { ...history, events: history.events.filter(event => event.lotId === historyMatch[1]) });
+      return;
     }
     if (request.method === "POST" && url.pathname === "/evidence") {
       if (request.headers["content-type"]?.split(";")[0]?.trim() !== "application/octet-stream") {

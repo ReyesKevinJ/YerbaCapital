@@ -15,6 +15,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: bash scripts/install-stellar-ci.sh
       - run: bash scripts/check-contracts.sh
+      - run: bash scripts/bindings.sh --check
   workspace:
     runs-on: ubuntu-latest
     steps:

@@ -136,3 +136,62 @@ Scope: local off-chain foundation, following the architecture document. No finan
 - Evidence: deployment pending; docs/evidence.md is populated only with RPC-confirmed transactions.
 - Next owner: DevOps / Release Engineer — execute deployment from clean committed source and verify hosted CI.
 - Open questions: Testnet resets require renewed demo identities/state; no mainnet path is provided.
+
+## Testnet integration and repayment correction — 2026-10-16
+
+### Handoff
+- Persona: Architect
+- Changed: docs/adr/011-bounded-allowance-for-dynamic-repayment.md, docs/contract-spec.md 0.3.0 and AGENTS.md §7 mirror; architecture status and payment authorization boundary
+- ABI change: yes — vault revision 3 requires bounded prior SAC allowance for repayment; root repayment arguments and financial policy remain unchanged
+- Tests: 36 contract tests passed, including exact root authorization after ten seconds of accrual and rollback without allowance
+- Evidence: first immutable deployment full repayment failed authorization; ADR-011 and docs/evidence.md identify the failed transaction. No successful repayment is claimed for that old loan.
+- Next owner: Contract Engineer — maintain this authorization regression; Integration Engineer — expose capped approval, expiry and revocation
+- Open questions: no escrow or sale was introduced; real custody/legal recovery remains outside scope
+
+### Handoff
+- Persona: DevOps / Release Engineer
+- Changed: deployment scripts, docs/evidence.md, .env.example; Rust CI and generated-bindings check
+- ABI change: deployment of vault 0.3; registry ABI unchanged
+- Tests: clean committed-source checkout used for deployment; registry/vault/asset binding verified by read-only generated/CLI queries
+- Evidence: current Testnet registry CBS7LFX54UPME7UU4NUZ2UKM5XL5KBMUWIYXW6SNSZKMORZJ7UAEQNN2; vault CAUF5CYPJXY2HUBY2XI67QY55A5QESGCKPOV664Q3JMDVG7URZWDH32U; self-issued USDC SAC documented in evidence
+- Next owner: DevOps — verify hosted CI after final integration push; keep keys private and renew Testnet after reset
+- Open questions: no public/mainnet deployment or production credentials
+
+### Handoff
+- Persona: Integration Engineer
+- Changed: packages/*-client (generated only), scripts/bindings.sh, scripts/abi/**, app/src/lib/stellar/**
+- ABI change: generated registry/vault/SAC interfaces; runtime IDs configured separately; stable errors mapped in Spanish and English
+- Tests: generation comparison, typecheck/lint, bigint formatting, confirmation lifecycle, missing co-signatures, wallet rejection and timeout behavior passed
+- Evidence: clients generated from built deployed Wasm; builtin SAC ABI exported from Testnet and captured unchanged for offline regeneration
+- Next owner: App Engineer — complete real Freighter acceptance; keep queries authoritative and never resend ambiguous submissions
+- Open questions: desktop/mobile tests without an extension cannot prove real Freighter signatures
+
+### Handoff
+- Persona: Oracle Engineer
+- Changed: svc/src/indexer/**, svc history endpoint, scripts/seed-demo.*, scripts/cosign-demo.mjs
+- ABI change: no
+- Tests: event deduplication/conflict detection, lossless bigint/evidence encoding and atomic checkpoint persistence passed; live Testnet events projected through the public gateway
+- Evidence: CLI seeder logs confirmed transactions only; pending steps halt automatic replay; synthetic evidence bytes are recoverable by hash
+- Next owner: Oracle Engineer — preserve read-model coverage and explicitly report RPC retention gaps
+- Open questions: archival recovery, production document authorization and availability remain outside the developer-local demo
+
+### Handoff
+- Persona: App Engineer
+- Changed: protocol workbench, Freighter adapter, public lot/history query and system status; evidence behavior preserved
+- ABI change: no handwritten ABI types; all contract operations use generated clients through the shared integration
+- Tests: typecheck/lint/build and local evidence browser tests passed; read-only Testnet browser check is opt-in and recorded separately
+- Evidence: real wallet acceptance remains pending; no simulated wallet is presented as a verified user signature
+- Next owner: App Engineer / project owner — execute docs/demo-script.md with Freighter Testnet accounts
+- Open questions: multi-device co-sign transfer is not part of the first demo; co-signatures are gathered in the same browser session by changing the active account
+
+## Final local verification
+
+- Contracts: 36 tests, fmt, Clippy with warnings denied, both Wasm builds passed.
+- App/service: frozen install, typecheck, lint, 15 tests and production build passed.
+- Browser: 4 evidence tests across mobile/desktop passed after the Webpack dev startup change; 2 read-only Testnet tests passed against the real RPC, local gateway and persistent indexer.
+- Generated clients: scripts/bindings.sh --check passed for registry, vault and the captured builtin SAC interface; generated sources remain unedited.
+- Diagrams: all 9 architecture Mermaid diagrams rendered successfully after the ADR-011 update.
+- Testnet: first path repaid/released (including co-signed withdrawal); second path impaired/defaulted/claimed while preserving physical damage. All successful steps have RPC-confirmed hashes in docs/evidence.md; the obsolete failed full repayment is explicitly separate.
+- Browser integration fixes: SDK kept external on the Node server to preserve its runtime; Webpack used in dev after an observed refresh loop; absent Option values guarded for SDK 16's runtime null representation. Query inputs prevent duplicate/in-flight edits.
+- Security: no Stellar secret-key patterns in staged source; .env, .stellar, evidence and indexer data ignored. Demo keys remain local and are never browser-bundled.
+- Pending: human Testnet Freighter signatures and screen recording. No production, mainnet or real-commodity acceptance is claimed.

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { StrKey } from "@stellar/stellar-sdk";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
@@ -15,13 +16,22 @@ import { createEvidenceServer } from "../../svc/src/http/server.js";
 const TOKEN = "synthetic-app-test-token-not-a-real-credential";
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
 
-test("network refuses mainnet and enabling contracts without generated clients", () => {
+test("network refuses mainnet and incomplete contract configuration", () => {
   const env = {
     NEXT_PUBLIC_NETWORK_PASSPHRASE: TESTNET_PASSPHRASE,
     NEXT_PUBLIC_STELLAR_RPC_URL: "https://soroban-testnet.stellar.org",
     NEXT_PUBLIC_CHAIN_ENABLED: "false",
   };
   assert.equal(loadNetworkConfig(env).chainEnabled, false);
+  // Valid synthetic addresses prove configuration only, never a real deployment.
+  const configured = { ...env, NEXT_PUBLIC_CHAIN_ENABLED: "true",
+    NEXT_PUBLIC_REGISTRY_ID: StrKey.encodeContract(Buffer.alloc(32, 1)),
+    NEXT_PUBLIC_VAULT_ID: StrKey.encodeContract(Buffer.alloc(32, 2)),
+    NEXT_PUBLIC_USDC_ID: StrKey.encodeContract(Buffer.alloc(32, 3)) };
+  assert.equal(loadNetworkConfig(configured).chainEnabled, true);
+  assert.throws(() => loadNetworkConfig({ ...configured, NEXT_PUBLIC_USDC_ID: configured.NEXT_PUBLIC_VAULT_ID }));
+  assert.throws(() => loadNetworkConfig({ ...configured, NEXT_PUBLIC_STELLAR_RPC_URL: "https://other.test" }));
+
   assert.throws(() => loadNetworkConfig({ ...env, NEXT_PUBLIC_NETWORK_PASSPHRASE: "mainnet" }));
   assert.throws(() => loadNetworkConfig({ ...env, NEXT_PUBLIC_CHAIN_ENABLED: "true" }));
   assert.throws(() => loadNetworkConfig({ ...env, NEXT_PUBLIC_STELLAR_RPC_URL: "http://example.test" }));
@@ -75,7 +85,7 @@ test("app gateway persists and downloads exact bytes through the real evidence s
     assert.equal(ready.status, 200);
     const status = await ready.text();
     assert.ok(status.includes("offchain_ready"));
-    assert.ok(status.includes("not_implemented"));
+    assert.ok(status.includes("disabled"));
     assert.ok(!status.includes(TOKEN));
   } finally {
     server.closeAllConnections();

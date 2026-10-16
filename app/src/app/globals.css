@@ -33,3 +33,12 @@ footer { border-top: 1px solid var(--line); margin-top: 3rem; padding: 1.5rem 0;
 .skip { position: absolute; top: -100px; padding: .6rem; background: var(--surface); }
 .skip:focus { top: 0; }
 @media(max-width: 600px) { header, main, footer { width: calc(100% - 2rem); } header { align-items: flex-start; flex-direction: column; } .intro { padding-top: 2.5rem; } .panel { padding: 1.1rem; } button { width: 100%; } }
+
+input:not([type=file]), select { display: block; width: 100%; padding: .65rem; border: 1px solid var(--line); color: var(--ink); background: var(--surface); font: inherit; }
+.field { margin-top: 1rem; }
+fieldset { min-width: 0; border: 1px solid var(--line); padding: 1rem; }
+.address { overflow-wrap: anywhere; word-break: break-word; }
+.timeline { padding-left: 1.5rem; }
+.timeline li { margin-bottom: 1.5rem; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+summary { cursor: pointer; }

@@ -223,9 +223,9 @@ Co-firmas de usuario: una transacción Soroban con entradas de autorización par
 ### Handoff
 
 - Persona: Architect
-- Changed: docs/contract-spec.md, AGENTS.md §7, docs/architecture.md y ADR-007 a ADR-010
-- ABI change: diseño 0.3.0 previo a la primera implementación; tipos/operaciones de esta sección sustituyen el borrador, sin contrato desplegado que migrar
+- Changed: docs/contract-spec.md, AGENTS.md §7, docs/architecture.md y ADR-007 a ADR-011
+- ABI change: revisión 0.3.0 con autorización acotada de repago; el despliegue previo es inmutable y se conserva como evidencia de la regresión, sin actualización administrativa
 - Tests: revisión de permisos, transiciones, redondeo y correspondencia entre contratos; ninguna prueba de contrato ejecutada por la mera especificación
 - Evidence: no transacciones on-chain generadas por este documento
-- Next owner: Contract Engineer — implementar registry y vault por separado, con la matriz §7.14
+- Next owner: Contract Engineer — mantener implementación y matriz §7.14; Integration Engineer — conservar los clientes generados y la autorización de repago
 - Open questions: ninguna de las reglas necesarias para la primera demo; venta, re-verificación y ejecución física real permanecen fuera de alcance

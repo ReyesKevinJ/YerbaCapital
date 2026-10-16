@@ -36,6 +36,8 @@ state = json.loads(manifest.read_text()) if manifest.exists() else {
     "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
     "addresses": {}, "contracts": {}, "transactions": [],
 }
+if state.get("pending"):
+    sys.exit(f"Unresolved deployment step: {state['pending']}. Inspect RPC before clearing the checkpoint; do not duplicate submission.")
 
 
 def save():
@@ -107,9 +109,12 @@ if "usdc" not in state["contracts"]:
                 print(f"Reusing verified test USDC SAC: {identifier}", flush=True)
                 break
     if not identifier:
+        state["pending"] = "Deploy test USDC SAC"
+        save()
         identifier = cli(["contract", "asset", "deploy", "--asset", asset,
                           "--source-account", "usdc-issuer", *net], "Deploy test USDC SAC")
     state["contracts"]["usdc"] = identifier
+    state["pending"] = None
     save()
 for name in ("registry", "vault"):
     if name in state["contracts"]:
@@ -118,11 +123,16 @@ for name in ("registry", "vault"):
     if name == "vault":
         constructor += ["--registry", state["contracts"]["registry"],
                         "--settlement_asset", state["contracts"]["usdc"]]
-    identifier = cli(["contract", "deploy", "--wasm", str(artifacts[name]),
+    state["pending"] = f"Deploy {name}"
+    save()
+    # Repeating an unresolved submission must never create another random-address contract.
+    salt = hashlib.sha256(f"YerbaCapital:{run_id}:{name}".encode()).hexdigest()
+    identifier = cli(["contract", "deploy", "--wasm", str(artifacts[name]), "--salt", salt,
                       "--source-account", "admin", *net, "--", *constructor], f"Deploy {name}")
     if not re.fullmatch(r"C[A-Z2-7]{55}", identifier):
         raise RuntimeError("Deployment did not return a contract address; inspect local manifest")
     state["contracts"][name] = identifier
+    state["pending"] = None
     save()
 
 for name, identifier in state["contracts"].items():

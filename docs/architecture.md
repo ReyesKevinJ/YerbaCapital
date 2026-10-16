@@ -8,16 +8,16 @@ El MVP se diseña exclusivamente para Stellar Testnet, Soroban, Freighter y USDC
 `registry` conserva roles, lotes, atestaciones, titularidad y gravámenes; `vault` decide sobre préstamos y ordena transferencias mediante el activo de liquidación.
 Las evidencias permanecen off-chain; los hechos físicos se registran mediante firmas de los roles autorizados y hashes de evidencia.
 La app consume clientes generados y un historial indexado; ni ella ni los servicios deciden permisos, deuda o liberación de colateral.
-El diseño conserva ADR-001 a ADR-005; ADR-007 a ADR-010 cierran las decisiones de la primera demo y delimitan las extensiones futuras.
+El diseño conserva ADR-001 a ADR-005; ADR-007 a ADR-011 cierran las decisiones de la primera demo y delimitan las extensiones futuras.
 
 ### Supuestos y estado del documento
 
-- **Estado:** arquitectura objetivo, no descripción de capacidades ya desplegadas. El repositorio incorpora una base off-chain ejecutable: app Next.js, gateway local y servicio de evidencia con almacenamiento por hash. Los contratos, clientes generados, indexador y Freighter todavía no están implementados. ADR-006 documenta el bootstrap original; el avance ejecutable y su validación se registran en README.md y docs/handoff.md.
-- **Fuentes internas:** [AGENTS.md](../AGENTS.md), especialmente §1.3, §3, §6, §7, §8.4, §8.5 y §11. [contract-spec.md](contract-spec.md), versión de diseño 0.2.0, cierra las reglas de implementación y se refleja en §7. Todavía no hay ABI desplegada.
+- **Estado:** arquitectura objetivo con contratos desplegados en Testnet, clientes generados, evidencia local, indexador y adaptación de Freighter implementados. La aceptación real con Freighter todavía está pendiente. ADR-006 documenta el bootstrap; README.md, docs/evidence.md y docs/handoff.md distinguen lo implementado de lo verificado. El primer despliegue reveló un problema de autorización del repago total; ADR-011 documenta su corrección y una nueva revisión inmutable.
+- **Fuentes internas:** [AGENTS.md](../AGENTS.md), especialmente §1.3, §3, §6, §7, §8.4, §8.5 y §11. [contract-spec.md](contract-spec.md), versión de diseño 0.3.0, cierra las reglas de implementación y se refleja en §7. El ABI y los despliegues se registran en docs/evidence.md.
 - **Supuesto S1:** la demo usa lotes, actores, documentos y valuaciones sintéticos. Los números de §12 son ilustrativos, no cotizaciones ni condiciones de crédito.
 - **Supuesto S2:** cada lote tiene un custodio responsable, una identidad física segregada y un único certificado indivisible. No se fusionan lotes ni se fracciona su certificado en el MVP.
 - **Supuesto S3:** la venta con deuda de §8b es un diseño futuro excluido de la primera demo por ADR-008. No se promete intercambio atómico entre dinero, certificado y mercadería.
-- **Supuesto S4:** el deterioro físico y el gravamen son dimensiones independientes. ADR-007 adopta esta separación y la especificación 0.2.0 la refleja; §19 registra el resultado. Ninguna transferencia financiera acredita una recuperación física.
+- **Supuesto S4:** el deterioro físico y el gravamen son dimensiones independientes. ADR-007 adopta esta separación y la especificación 0.3.0 la refleja; §19 registra el resultado. Ninguna transferencia financiera acredita una recuperación física.
 - **Supuesto S5:** para la demostración se publican los archivos sintéticos necesarios para verificar sus hashes. En un uso futuro, cualquier tercero puede comprobar integridad si obtiene lícitamente los archivos; la publicidad del hash no vuelve público el documento privado.
 - **Supuesto S6:** ADR-010 permite repagar hasta el reclamo del certificado, incluso después de `Defaulted`. Un pago parcial conserva default y el total libera el gravamen; después del reclamo no hay otro cobro on-chain. Disputas y recuperación jurídica siguen fuera de alcance.
 - Se distinguen reglas arquitectónicas, ejemplos y propuestas. Las propuestas futuras no reemplazan decisiones aceptadas ni autorizan cambios silenciosos en la especificación.
@@ -119,7 +119,7 @@ La app accede a contratos únicamente mediante los clientes generados y la capa 
 
 **Responsabilidad única:** `registry` cambia la titularidad y el gravamen; solo admite instrucciones de gravamen o adjudicación provenientes de `vault`. `vault` decide sobre deuda, fondeo, repago y procedencia financiera del retiro. El SAC es el único que altera saldos de USDC. El titular puede transferir un certificado libre según las reglas de `registry`, pero no eludir un préstamo activo. `admin` no tiene ninguna vía de traslado de fondos o certificados.
 
-El fondeo transfiere `lender → borrower`; el repago, `payer → lender`. `vault` coordina, sin balance común ni retención de fondos. El equipo debe identificar un único activo de liquidación de Testnet por despliegue y registrar su procedencia; un activo propio denominado USDC no es una emisión de Circle. El SAC permite utilizar activos emitidos de Stellar desde contratos; no sustituye la lógica de préstamo. [Fuente: Stellar Asset Contract](https://developers.stellar.org/docs/tokens/stellar-asset-contract).
+El fondeo transfiere `lender → borrower`; el repago, `payer → lender`. Antes de repagar, el pagador autoriza un gasto máximo con vencimiento a favor del vault; puede revocarlo y cada repago requiere además su autorización explícita (ADR-011). `vault` coordina, sin balance común ni retención de fondos. El equipo debe identificar un único activo de liquidación de Testnet por despliegue y registrar su procedencia; un activo propio denominado USDC no es una emisión de Circle. El SAC permite utilizar activos emitidos de Stellar desde contratos; no sustituye la lógica de préstamo. [Fuente: Stellar Asset Contract](https://developers.stellar.org/docs/tokens/stellar-asset-contract).
 
 ## 5. Frontera on-chain / off-chain
 
@@ -237,6 +237,7 @@ sequenceDiagram
     Evidence-->>Verifier: Hash de evidencia de inspección
     Verifier->>Registry: Firmar inspección satisfactoria
     Registry-->>Indexer: InspectionRecorded
+    Borrower->>Asset: Autorizar gasto máximo con vencimiento para el repago
     Borrower->>Vault: Autorizar repago parcial
     Vault->>Asset: Transferencia directa borrower a lender
     Vault-->>Indexer: LoanRepaid, deuda pendiente
@@ -315,7 +316,7 @@ sequenceDiagram
     Note over Lender,Custodian: No hay entrega automática ni garantía de recupero, calidad o valor
 ```
 
-La transición `Defaulted → Liquidated` describe el reclamo del derecho condicionado, no el cobro de la deuda en dinero ni una venta física. El evento de transferencia registra al nuevo titular y la causa de default; no es una liberación por repago. La representación de deterioro simultáneo a gravamen y cambio de titularidad se adopta en ADR-007 y en la especificación 0.2.0. Para default por plazo, se sustituye el informe de deterioro por vencimiento superado y deuda pendiente; el resto del reclamo es el mismo.
+La transición `Defaulted → Liquidated` describe el reclamo del derecho condicionado, no el cobro de la deuda en dinero ni una venta física. El evento de transferencia registra al nuevo titular y la causa de default; no es una liberación por repago. La representación de deterioro simultáneo a gravamen y cambio de titularidad se adopta en ADR-007 y en la especificación 0.3.0. Para default por plazo, se sustituye el informe de deterioro por vencimiento superado y deuda pendiente; el resto del reclamo es el mismo.
 
 ### 8d. Retiro parcial con préstamo vigente
 
@@ -444,7 +445,7 @@ El retiro parcial y la confirmación de venta no constituyen estados nuevos de p
 
 ## 10. Catálogo de eventos de negocio
 
-Se conservan los nombres de AGENTS.md §7.10. Son hechos de negocio, no un diseño de tipos, campos de interfaz o temas de publicación. **Todos** incluyen procedencia verificable: contrato emisor, red, transacción y orden en el ledger. Los eventos de hechos físicos llevan hash de evidencia y autoría; el URI se vincula fuera de cadena. Los datos listados son mínimos conceptuales, según la especificación 0.2.0, sin información personal o comercial privada.
+Se conservan los nombres de AGENTS.md §7.10. Son hechos de negocio, no un diseño de tipos, campos de interfaz o temas de publicación. **Todos** incluyen procedencia verificable: contrato emisor, red, transacción y orden en el ledger. Los eventos de hechos físicos llevan hash de evidencia y autoría; el URI se vincula fuera de cadena. Los datos listados son mínimos conceptuales, según la especificación 0.3.0, sin información personal o comercial privada.
 
 `Indexer`, `App` y `Auditor` son consumidores. `App` obtiene el historial mediante `Indexer` y confirma decisiones mediante contratos; `Auditor` contrasta la procedencia con la cadena. Los eventos de transferencia del SAC complementan los financieros, sin reemplazarlos ni contar un mismo pago dos veces.
 
@@ -473,7 +474,7 @@ Se conservan los nombres de AGENTS.md §7.10. Son hechos de negocio, no un dise�
 | `RoleRevoked` | Se revoca un rol hacia adelante | `admin` | Dirección, rol y autoridad revocante | `registry` → Indexer, App, Auditor | 8e |
 | `ParamsUpdated` | Cambia una política dentro de sus límites | `admin` | Componente responsable, política modificada, valores y momento de aplicación | `registry` o `vault` según política → Indexer, App, Auditor | 8e |
 
-El inicio y fin de diagramas no agregan eventos distintos de los hechos que los originan. El fin de `Unissued` conceptual por rechazo no implica quemar un certificado inexistente. El cese del gravamen por adjudicación se evidencia conjuntamente con `ReceiptTransferred` y `CollateralClaimed`, sin confundirlo con un repago. La relación exacta entre eventos y atestaciones se define en la especificación 0.2.0; SaleConfirmed permanece reservado para el diseño futuro, sin emisión ni capacidad de venta en el primer MVP.
+El inicio y fin de diagramas no agregan eventos distintos de los hechos que los originan. El fin de `Unissued` conceptual por rechazo no implica quemar un certificado inexistente. El cese del gravamen por adjudicación se evidencia conjuntamente con `ReceiptTransferred` y `CollateralClaimed`, sin confundirlo con un repago. La relación exacta entre eventos y atestaciones se define en la especificación 0.3.0; SaleConfirmed permanece reservado para el diseño futuro, sin emisión ni capacidad de venta en el primer MVP.
 
 ## 11. Flujo de evidencia y oráculo físico
 
@@ -612,7 +613,7 @@ Los checks indican revisión del documento, no aceptación de código ni de la d
 - [x] Las fronteras documentales están explícitas; §17 delega implementación y §18 delega producto/legal sin diseñarlos aquí.
 - [x] Los nueve bloques Mermaid fueron renderizados con Mermaid CLI, sin errores de sintaxis; esta validación no sustituye la revisión semántica de las propuestas.
 
-**Resultado de decisiones:** ADR-007 acepta la separación de deterioro y gravamen; ADR-008 excluye venta de la primera demo; ADR-009 cierra co-firmas/coordinación y ADR-010 cierra política y repagos. AGENTS.md §7 y la especificación 0.2.0 se reconciliaron. La implementación y aceptación Testnet siguen pendientes.
+**Resultado de decisiones:** ADR-007 acepta la separación de deterioro y gravamen; ADR-008 excluye venta de la primera demo; ADR-009 cierra co-firmas/coordinación y ADR-010 cierra política y repagos. ADR-011 agrega el permiso de gasto acotado para que el interés de ledger no invalide la autorización. AGENTS.md §7 y la especificación 0.3.0 se reconciliaron. La implementación y los despliegues están documentados; la aceptación completa de Freighter sigue pendiente.
 
 ## 17. Pendiente para la especificación del smart contract
 
@@ -668,16 +669,17 @@ La revisión de las propuestas se cerró al avanzar en el orden acordado con el 
 - **Propuesta B — Preserve impairment across receipt lifecycle:** aceptada como [ADR-007](adr/007-independent-physical-and-receipt-state.md). El estado físico permanece independiente al liberar o adjudicar el certificado.
 - [ADR-009](adr/009-atomic-multi-party-authorization.md) cierra co-firmas y coordinación de retiros gravados sin ciclos contractuales.
 - [ADR-010](adr/010-loan-policy-and-post-default-repayment.md) cierra snapshot de política financiera, redondeo, pausa y repagos hasta el reclamo.
+- [ADR-011](adr/011-bounded-allowance-for-dynamic-repayment.md) documenta la autorización de gasto acotada y revocable para repagar con interés actualizado, sin escrow ni un nuevo actor de confianza.
 
-Estas decisiones no sustituyen ADR-001 a ADR-005. Sus consecuencias técnicas están en la especificación 0.2.0 y AGENTS.md §7. No se realizó un despliegue por adoptar el diseño.
+Estas decisiones no sustituyen ADR-001 a ADR-005. Sus consecuencias técnicas están en la especificación 0.3.0 y AGENTS.md §7. Los despliegues y su validación se registran por separado en docs/evidence.md.
 
 ### Handoff
 
 - Persona: Architect
-- Changed: docs/architecture.md, docs/contract-spec.md, AGENTS.md, ADR-007 a ADR-010
-- ABI change: diseño 0.2.0 previo a implementación; no hay ABI desplegada que migrar
+- Changed: docs/architecture.md, docs/contract-spec.md, AGENTS.md, ADR-007 a ADR-011
+- ABI change: diseño 0.3.0 y corrección de autorización de repago; el despliegue anterior no se modifica
 - Tests: correspondencia documental de eventos, permisos y transiciones; diagramas actualizados sin agregar código a arquitectura
 - Evidence: documentos de diseño; sin nuevas transacciones on-chain
-- Next owner: Contract Engineer — implementar registry y vault según la especificación 0.2.0
-- Next owner: App Engineer / Docs & Pitch — tomar §18, la matriz de capacidades y los clientes generados cuando estén disponibles
+- Next owner: Contract Engineer — mantener contratos según la especificación 0.3.0 y sus pruebas de autorización
+- Next owner: App Engineer / Docs & Pitch — tomar §18, la matriz de capacidades y los clientes generados
 - Open questions: cuestiones de producto/legal de §18 y extensiones fuera del primer MVP; ninguna regla financiera de la primera demo se delega a la app

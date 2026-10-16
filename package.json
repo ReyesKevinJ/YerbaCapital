@@ -8,18 +8,25 @@
   },
   "scripts": {
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
+    "typecheck": "pnpm build:clients && pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
+    "test": "pnpm build:clients && pnpm -r test",
     "setup:local": "node scripts/setup-local.mjs",
     "dev:app": "pnpm --filter app dev",
     "dev:svc": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence start",
-    "test:e2e": "pnpm --filter app test:e2e"
+    "test:e2e": "pnpm --filter app test:e2e",
+    "build:clients": "pnpm --filter registry-client --filter vault-client --filter settlement-client build",
+    "dev:indexer": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence index"
   },
   "devDependencies": {
     "@types/node": "22",
     "eslint": "9",
     "typescript": "5.9.3",
     "typescript-eslint": "8"
+  },
+  "pnpm": {
+    "overrides": {
+      "@stellar/stellar-sdk": "16.0.1"
+    }
   }
 }

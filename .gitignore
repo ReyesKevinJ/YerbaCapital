@@ -8,6 +8,7 @@ target/
 !.env.example
 .evidence/
 .stellar/
+.indexer/
 *.pem
 *.key
 .DS_Store

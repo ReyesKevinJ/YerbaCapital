@@ -10,7 +10,9 @@ if (!["dev", "build", "start"].includes(mode)) {
     // Load before spawning Next: passing --env-file to Next can propagate an invalid NODE_OPTIONS.
     process.loadEnvFile(fileURLToPath(new URL("../.env", import.meta.url)));
     const cli = fileURLToPath(new URL("../app/node_modules/next/dist/bin/next", import.meta.url));
-    const args = mode === "build" ? [cli, mode] : [cli, mode, "--hostname", "127.0.0.1"];
+    // The generated SDK workspace imports trigger a Turbopack dev refresh loop.
+    // Webpack keeps local forms/signatures stable; production build stays on Next's default.
+    const args = mode === "build" ? [cli, mode] : [cli, mode, "--hostname", "127.0.0.1", ...(mode === "dev" ? ["--webpack"] : [])];
     const child = spawn(process.execPath, args, { stdio: "inherit", env: process.env });
     for (const signal of ["SIGINT", "SIGTERM"]) {
       process.once(signal, () => child.kill(signal));

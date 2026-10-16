@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "YerbaCapital · Base local",
-  description: "Base de evidencia sintética de YerbaCapital. Solo Stellar Testnet.",
+  title: "YerbaCapital · Demo Testnet",
+  description: "Financiamiento y trazabilidad de lotes sintéticos. Solo Stellar Testnet.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

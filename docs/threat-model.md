@@ -1,0 +1,18 @@
+# Modelo de amenazas del prototipo
+
+Alcance: contratos Testnet 0.2/0.3 y app/servicio local con evidencia sintética. Es una revisión conceptual y de implementación, no una auditoría externa ni una certificación de seguridad.
+
+- **Verificador deshonesto o colusión con borrower:** rol autorizado, evidencia por hash, co-firma del custodio en ingreso y separación de direcciones. Eso no demuestra independencia económica ni existencia física. Inspección externa, responsabilidad y segregación requieren acuerdos fuera del MVP.
+- **Custodia y doble prendado:** el gravamen único bloquea dos préstamos dentro de registry. No detecta prendas, ventas, robos ni certificados de otro sistema. La identidad del lote, etiquetas y evidencia de custodia mitigan; no eliminan ese supuesto.
+- **Precio vencido o clave del oracle comprometida:** vigencia, haircut, límites y política financiera por préstamo restringen exposición. La firma de un oracle autorizado puede ser falsa; no hay feed independiente ni garantías de precio/convertibilidad.
+- **Admin comprometido o perdido:** puede cambiar roles y parámetros acotados, y pausar solicitudes/fondeos. No dispone de operaciones de rescate, cobro o transferencia de bienes/fondos ajenos. Puede bloquear nuevas acciones al revocar roles; recuperar esa autoridad no está implementado.
+- **Claves de usuario comprometidas/phishing:** firmas explícitas, verificación de red/cuenta antes de firmar, cliente generado y referencias de despliegue. El usuario conserva el control de sus claves; la app no puede proteger una billetera comprometida ni garantizar que todo documento firmado sea verdadero.
+- **Autorización dinámica de repago:** ADR-011 corrige el desacople entre interés simulado y real. Se requiere permiso SAC limitado por monto/vencimiento y auth del payer en cada repago; el spender y el activo son inmutables. Cancelar el repago no revoca el permiso previo; la UI permite revocarlo. El vault no ofrece gasto genérico ni un retiro administrativo.
+- **Doble cobro/default:** solo lender reclama una vez; se congela exposición en Liquidated y se rechazan nuevos repagos/reclamos. El certificado no acredita recuperación física ni adjudicación judicial. El proceso legal queda separado.
+- **Transferencia fallida o envío ambiguo:** Soroban revierte estado y balances ante fallo. El cliente solo muestra éxito con SUCCESS y conserva el hash si hay timeout; nunca reintenta automáticamente un envío ambiguo.
+- **Indexador atrasado o corrupto:** historial con procedencia, cobertura y deduplicación; discontinuidades de retención se informan. Permisos/deuda/estado actual se consultan al contrato, sin confiar en el historial local. Los links permiten contrastar las transacciones; no hay archivo descentralizado del índice en este MVP.
+- **Pérdida/alteración de evidencia:** almacenamiento por SHA-256, verificación de bytes en descarga y publicación atómica. La cadena conserva el hash, no asegura disponibilidad o veracidad. Los terceros deben recibir los bytes para verificarlos.
+- **Exposición del servicio local:** token privado entre servidores, loopback y validación de origen en cargas. El gateway no es una plataforma documental multiusuario; no se publica ni se cargan documentos privados reales.
+- **Operación Testnet:** resets, archivo de entradas, retención RPC, saldo XLM o trustlines ausentes pueden interrumpir la demo. Se documentan despliegues, claves sintéticas locales, mantenimiento y reconstrucción. No hay ruta mainnet.
+
+Las pruebas nativas ejercitan roles, auth, gravámenes, balances, límites, tiempo y rollback; las pruebas de integración verifican evidencia y clientes. Una aprobación de tests no demuestra seguridad de producción, cumplimiento normativo o una operación real de Freighter.

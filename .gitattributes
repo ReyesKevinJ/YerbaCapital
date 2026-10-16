@@ -1,0 +1,2 @@
+# Preserve the official generator's output byte-for-byte (including doc-comment spacing).
+packages/*-client/** linguist-generated=true whitespace=-blank-at-eol

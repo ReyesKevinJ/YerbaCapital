@@ -5,6 +5,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "**/testnet.spec.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -20,6 +21,6 @@ export default defineConfig({
   ],
   webServer: [
     { command: "pnpm dev:svc", cwd: root, url: "http://127.0.0.1:3001/health", reuseExistingServer: false, timeout: 60_000 },
-    { command: "pnpm dev:app", cwd: root, url: "http://127.0.0.1:3000", reuseExistingServer: false, timeout: 60_000 },
+    { command: "pnpm dev:app", cwd: root, env: { NEXT_PUBLIC_CHAIN_ENABLED: "false" }, url: "http://127.0.0.1:3000", reuseExistingServer: false, timeout: 60_000 },
   ],
 });

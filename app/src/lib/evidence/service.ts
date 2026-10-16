@@ -14,7 +14,7 @@ export function evidenceServiceConfig(env: Readonly<Record<string, string | unde
 
 export async function evidenceRequest(path: string, init: RequestInit = {}): Promise<Response> {
   const { baseUrl, token } = evidenceServiceConfig(process.env);
-  if (!/^\/(health|evidence(?:\/[a-f0-9]{64})?)$/.test(path)) {
+  if (!/^\/(health|evidence(?:\/[a-f0-9]{64})?|lots\/[1-9]\d*\/history)$/.test(path)) {
     throw new Error("Ruta de evidencia inválida.");
   }
   return fetch(new URL(path, baseUrl), {

@@ -30,7 +30,7 @@ test("synthetic evidence round trip works through the app, API and storage", asy
   expect(Buffer.concat(chunks).toString()).toBe("abc");
   const status = await page.request.get("/api/system");
   expect(status.ok()).toBe(true);
-  expect(await status.json()).toMatchObject({ status: "offchain_ready", chainEnabled: false, components: { registry: "not_implemented", vault: "not_implemented" } });
+  expect(await status.json()).toMatchObject({ status: "offchain_ready", chainEnabled: false, components: { registry: "disabled", vault: "disabled" } });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]);
   await page.screenshot({ path: test.info().outputPath("evidence.png"), fullPage: true });

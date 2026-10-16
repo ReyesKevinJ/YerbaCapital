@@ -9,6 +9,7 @@ export type ServiceConfig = {
   storageDirectory: string;
   accessToken: string;
   maxEvidenceBytes: number;
+  historyPath?: string;
 };
 
 /** Read operational configuration only; roles and financial state belong on-chain. */
@@ -34,6 +35,7 @@ export function loadServiceConfig(env: Readonly<Record<string, string | undefine
     storageDirectory: resolve(required(env, "EVIDENCE_STORAGE_DIR")),
     accessToken,
     maxEvidenceBytes: boundedInteger(env.EVIDENCE_MAX_BYTES ?? "5242880", "EVIDENCE_MAX_BYTES", 1, 20 * 1024 * 1024),
+    historyPath: resolve(env.INDEXER_STORAGE_DIR ?? "../.indexer", "history.json"),
   };
 }
 
