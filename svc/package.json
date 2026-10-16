@@ -1,0 +1,13 @@
+{
+  "name": "@yerbacapital/evidence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "test": "pnpm build && node --test dist/test/*.test.js",
+    "evidence": "node dist/src/cli.js"
+  }
+}

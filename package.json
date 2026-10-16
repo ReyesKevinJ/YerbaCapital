@@ -1,0 +1,21 @@
+{
+  "name": "yerbacapital",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@8.10.2",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "@types/node": "22",
+    "eslint": "9",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8"
+  }
+}
