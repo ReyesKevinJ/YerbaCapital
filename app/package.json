@@ -1,0 +1,26 @@
+{
+  "name": "app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../scripts/run-app.mjs dev",
+    "build": "node ../scripts/run-app.mjs build",
+    "start": "node ../scripts/run-app.mjs start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test e2e playwright.config.ts next.config.mjs",
+    "test": "tsx --test test/*.test.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "^16.4.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15"
+  }
+}

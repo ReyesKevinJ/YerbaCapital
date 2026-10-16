@@ -10,7 +10,11 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "setup:local": "node scripts/setup-local.mjs",
+    "dev:app": "pnpm --filter app dev",
+    "dev:svc": "pnpm --filter @yerbacapital/evidence build && pnpm --filter @yerbacapital/evidence start",
+    "test:e2e": "pnpm --filter app test:e2e"
   },
   "devDependencies": {
     "@types/node": "22",
