@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("role workspaces expose relevant tasks and public view stays read-only", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/dashboard");
   const picker = page.getByLabel("Vista por rol");
   const nav = page.getByRole("navigation", { name: "Navegación principal" });
   for (const [role, heading, section] of [

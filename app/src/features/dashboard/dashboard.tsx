@@ -7,6 +7,7 @@ import { ProtocolWorkbench, operationLabels, type OperationRequest } from "../..
 import { ContextHelp } from "../../components/context-help";
 import { parseCatalog, type Catalog } from "./catalog";
 import { LotDocuments } from "../operations/lot-documents";
+import { InvestorMap } from "../investor/investor-map";
 import { LoanCatalog } from "./loan-catalog";
 import { roleGuidance } from "./role-guidance";
 import { EvidenceForm } from "../../components/evidence-form";
@@ -25,8 +26,8 @@ const ledgerDate = (value: bigint) => value === 0n ? "Se define al financiar" : 
 const shortAddress = (value: string) => `${value.slice(0, 5)}…${value.slice(-5)}`;
 import { physicalLabels, receiptLabels, loanLabels, eventLabels } from "./labels";
 
-export function Dashboard({ chainEnabled }: { chainEnabled: boolean }) {
-  const [role, setRole] = useState<WorkspaceRole>("borrower");
+export function Dashboard({ chainEnabled, initialRole = "borrower" }: { chainEnabled: boolean; initialRole?: WorkspaceRole }) {
+  const [role, setRole] = useState<WorkspaceRole>(initialRole);
   const [roleLocked, setRoleLocked] = useState(false);
   const workspace = roleWorkspaces[role];
   const guide = role === "admin" ? undefined : roleGuidance[role];
@@ -113,9 +114,10 @@ export function Dashboard({ chainEnabled }: { chainEnabled: boolean }) {
     </aside>
     <main id="main" className="yc-main" tabIndex={-1}>
       <header className="yc-topbar"><div><p className="yc-eyebrow">Financiamiento agroindustrial</p><h1>{page === "Resumen" ? "Panel de control" : page}</h1><p className="yc-sub">Liquidez para la yerba mate. Registros y evidencia verificables.</p></div>
-        <div className="yc-actions"><span className="yc-pill amber"><FlaskConical size={13} aria-hidden="true" />{chainEnabled ? "Testnet · Datos sintéticos" : "Modo off-chain"}</span>{canPresent("register_lot") && <button className="yc-btn primary" disabled={!chainEnabled} onClick={() => operate("register_lot")}><Plus size={16} aria-hidden="true" />Registrar lote</button>}</div>
+        <div className="yc-actions">{role !== "lender" && <a className="yc-btn secondary" href="/investors">Explorar como inversor<ArrowUpRight size={16} aria-hidden="true" /></a>}<span className="yc-pill amber"><FlaskConical size={13} aria-hidden="true" />{chainEnabled ? "Testnet · Datos sintéticos" : "Modo off-chain"}</span>{canPresent("register_lot") && <button className="yc-btn primary" disabled={!chainEnabled} onClick={() => operate("register_lot")}><Plus size={16} aria-hidden="true" />Registrar lote</button>}</div>
       </header>
       <div className="yc-principle"><ShieldCheck size={18} aria-hidden="true" /><p><strong>El token no es la yerba.</strong> La blockchain registra autoría e integridad; no garantiza existencia, calidad ni custodia física.</p></div>
+      {role === "lender" && page === "Resumen" && <InvestorMap onFinancing={() => navigate("Financiamiento")} />}
       <section className="yc-card yc-role-summary" aria-labelledby="workspace-heading"><h2 id="workspace-heading">{workspace.label}</h2><p>{workspace.description}</p><p className="yc-sub">{role === "observer" ? "Esta vista solo consulta registros públicos. No necesitás conectar una billetera ni firmar para leerlos." : "Estos lotes son ejemplos públicos de la demo; no son necesariamente tuyos. Para firmar vas a usar Freighter, una billetera de prueba. El sistema comprueba los permisos de esa cuenta."}</p>{workspace.operations.length > 0 && <div className="yc-actions">{(guide?.primary ?? workspace.operations.slice(0, 3)).map(operation => <button key={operation} className="yc-btn secondary" disabled={!chainEnabled} onClick={() => operate(operation)}>{operationLabels[operation]}</button>)}{workspace.operations.length > (guide?.primary.length ?? 3) && <button className="yc-btn secondary" onClick={() => navigate("Operaciones")}>Ver todas las tareas</button>}</div>}{guide && page === "Resumen" && <div className="role-guidance"><h3>Cómo seguir</h3><ol>{guide.steps.map(step => <li key={step}>{step}</li>)}</ol><button className="yc-btn secondary" onClick={() => navigate(guide.startPage)}>Abrir {guide.startPage.toLocaleLowerCase("es-AR")}</button><ContextHelp key={role} title={guide.helpTitle}><p>{guide.explanation}</p></ContextHelp></div>}</section>
       {error && <p role="alert" className="error">{error}</p>}
       {chainEnabled && <div className="yc-toolbar"><p className="yc-sub">{loading ? "Consultando contratos e historial…" : data.fetchedAt ? `Última consulta: ${new Date(data.fetchedAt).toLocaleTimeString("es-AR")}` : "Esperando consulta de Testnet."}</p><button className="yc-btn secondary" disabled={loading} onClick={() => { setError(""); setRefresh(value => value + 1); }}><RefreshCw size={14} aria-hidden="true" />Actualizar datos</button></div>}

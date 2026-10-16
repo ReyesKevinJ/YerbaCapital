@@ -5,7 +5,7 @@ const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f200
 test("synthetic evidence round trip works through the app, API and storage", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Ir al contenido" })).toBeFocused();
@@ -37,7 +37,7 @@ test("synthetic evidence round trip works through the app, API and storage", asy
 });
 
 test("a failed upload keeps the selected file and allows recovery", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/dashboard");
   await page.route("**/api/evidence", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Servicio no disponible. Volvé a intentar." }) }));
   await page.getByLabel("Archivo sintético").setInputFiles({ name: "synthetic.txt", mimeType: "text/plain", buffer: Buffer.from("abc") });
   await page.getByRole("button", { name: "Guardar comprobante" }).click();

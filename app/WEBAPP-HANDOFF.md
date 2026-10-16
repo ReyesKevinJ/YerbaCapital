@@ -97,3 +97,50 @@ preview explícitamente a consultas on-chain. No se relajaron controles para el 
 - Evidence: QR decodificado por un lector independiente en pruebas; manifiesto y archivos rehasheados
 - Next owner: equipo — autorizar acceso al proyecto de hosting y ejecutar aceptación con Freighter
 - Open questions: equipo Vercel, alojamiento del servicio/índice y cambios de ABI que entregue el compañero
+
+### Handoff — mapa para inversores
+- Persona: App Engineer
+- Changed: ruta `/investors`, mapa interactivo en Resumen de lender, acceso desde el frontend y pruebas de navegación
+- ABI change: no
+- Tests: typecheck y lint correctos; selección por teclado, filtro de provincia y paso a financiamiento en escritorio/móvil y temas claro/oscuro
+- Evidence: capturas Playwright; inspección visual de ambos tamaños
+- Next owner: Producto/UX — acordar publicación de ofertas y ubicaciones aproximadas consentidas fuera de cadena antes de reemplazar los ejemplos
+- Open questions: fuente de disponibilidad comercial y responsable de actualizarla; ventas excluidas del MVP vigente
+
+El mapa es esquemático y sin escala. Las localidades sirven de contexto; establecimientos,
+volúmenes y tiempos son ficticios, sin asociación con IDs de lote/préstamo. No se crean
+ofertas reales, precios ni transacciones de venta. Las solicitudes de financiamiento se
+consultan en su sección existente; nunca se infieren del mapa. No se envían ubicaciones
+privadas ni se usan mapas de terceros, claves API o servicios de geolocalización.
+
+### Handoff — portada pública
+- Persona: App Engineer
+- Changed: `/` presenta la propuesta; `/dashboard` conserva el panel para entidades; `/investors` conserva mapa y vista del prestamista; pruebas operativas actualizadas a la nueva ruta
+- ABI change: no
+- Tests: tipos, lint y unidades; pruebas de navegación de portada, inversor y roles en escritorio/móvil, con capturas claro/oscuro
+- Evidence: capturas de navegador locales; sin nuevas transacciones
+- Next owner: equipo — revisar contenido de presentación antes de grabar la demo
+- Open questions: ninguna para la portada; publicación y aceptación real con Freighter siguen pendientes
+
+La portada no consulta contratos ni requiere billetera. Presenta el problema, el recorrido
+de la solución, beneficios por actor y límites de la blockchain. No promete crédito,
+rendimientos, existencia física garantizada ni cumplimiento normativo. Los accesos son
+a la demo de Testnet; no hay alta real de inversores ni oferta comercial activa.
+
+Animaciones de portada: entrada escalonada del título y accesos, aparición de la
+ilustración/sol y secuencia de iconos, revelado al entrar al viewport cuando el navegador
+lo admite y respuestas suaves de tarjetas/botones. Sin librerías ni reproducción infinita.
+Con movimiento reducido se desactivan animaciones y transiciones; el contenido permanece
+accesible también sin soporte de animaciones vinculadas al scroll.
+
+### Handoff — interacción de tarjeta ilustrada (landing-story)
+- Persona: App Engineer
+- Changed: `app/src/features/landing/landing.css`, `app/e2e/landing.spec.ts`
+- ABI change: no
+- Tests: `pnpm --filter app typecheck`, `pnpm --filter app lint`, 8 casos en `landing.spec.ts` (Desktop y Mobile) con verificación de elevación/inclinación en hover, retorno suave al salir y respeto estricto de `prefers-reduced-motion`
+- Evidence: verificación E2E con Playwright sobre servidor existente http://127.0.0.1:3000
+- Next owner: equipo — revisión visual de interacción en la demo
+- Open questions: ninguna
+
+Interacción de `.landing-story`: elevación (`translateY(-8px)`), reorientación sutil (`rotate(-0.5deg)`), sombra profunda y respuesta armónica del sol, paisaje e icono, con retorno fluido (`cubic-bezier(.22, 1, .36, 1)`) al quitar el cursor. No colisiona con la animación de entrada inicial `landing-enter` (que actúa sobre `translate` y `opacity`). En dispositivos táctiles (`pointer: coarse`, `hover: none`) y pantallas angostas (`<= 720px`) se desactiva la inclinación para evitar estados pegados o desbordes. En modo de movimiento reducido (`prefers-reduced-motion: reduce`), las transiciones y transformaciones se anulan por completo (`transform: none !important`). Sin dependencias adicionales ni código JavaScript en la landing.
+

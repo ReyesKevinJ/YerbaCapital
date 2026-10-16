@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("public view reads both confirmed synthetic Testnet paths without a wallet", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/dashboard");
   const lots = page.getByRole("table", { name: "Lotes leídos del registry de Testnet" });
   await expect(lots.getByText("11.000 kg", { exact: true })).toBeVisible({ timeout: 30000 });
   await expect(lots.getByText("Deteriorado", { exact: true })).toBeVisible();
@@ -39,7 +39,7 @@ test("public view reads both confirmed synthetic Testnet paths without a wallet"
 });
 
 test("Testnet role task selectors match each actor without preparing or signing", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/dashboard");
   const expected: Record<string, string[]> = {
     borrower: ["register_lot", "request_loan", "cancel_request", "approve_repayment", "repay", "revoke_allowance", "partial_withdraw", "mark_default"],
     lender: ["fund", "mark_default", "claim_collateral", "approve_repayment", "repay", "revoke_allowance"],
@@ -61,7 +61,7 @@ test("Testnet role task selectors match each actor without preparing or signing"
 });
 
 test("field-friendly units and guidance keep contract units out of entry forms", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/dashboard");
   await page.getByRole("navigation").getByRole("button", { name: "Operaciones", exact: true }).click();
   await expect(page.getByLabel("Inicio del estacionamiento (fecha y hora local)")).toHaveAttribute("type", "datetime-local");
   await expect(page.getByText("Pedí este código al equipo que prepara la demo. No escribas una dirección ni inventes un código.")).toBeVisible();
@@ -80,7 +80,7 @@ test("field-friendly units and guidance keep contract units out of entry forms",
 });
 
 test("specialist tasks explain signatures, valuation and payment before any wallet action", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/dashboard");
   for (const [role, operation, heading, help, explanation] of [
     ["lender", "fund", "Financiar una solicitud", "¿Qué es USDC de prueba?", "No son pesos ni dinero real"],
     ["custodian", "verify_lot", "Confirmar el ingreso con el depósito", "¿Quién firma primero?", "Para preparar la verificación usá la cuenta del inspector"],
@@ -117,7 +117,7 @@ test("public deep links read physical and financial history and catalog discover
 
 test("borrower can reuse a consulted warehouse and query contract capacity without signing", async ({ page }) => {
   test.setTimeout(60000);
-  await page.goto("/");
+  await page.goto("/dashboard");
   await page.getByRole("navigation").getByRole("button", { name: "Operaciones", exact: true }).click();
   const warehouse = page.getByLabel("Usar la referencia de un depósito ya consultado (opcional)", { exact: true });
   await expect(warehouse).toBeVisible({ timeout: 30000 }); await warehouse.selectOption("1");
@@ -130,7 +130,7 @@ test("borrower can reuse a consulted warehouse and query contract capacity witho
 });
 
 test("verifier can explicitly apply an uploaded digest without replacing the rest of the form", async ({ page }) => {
-  await page.goto("/"); await page.getByLabel("Vista por rol", { exact: true }).selectOption("verifier");
+  await page.goto("/dashboard"); await page.getByLabel("Vista por rol", { exact: true }).selectOption("verifier");
   await page.getByRole("navigation").getByRole("button", { name: "Operaciones", exact: true }).click();
   await page.getByLabel("Número de lote", { exact: true }).fill("1"); await page.getByLabel("Peso en kg enteros", { exact: true }).fill("11000");
   await page.getByRole("navigation").getByRole("button", { name: "Resumen", exact: true }).click();

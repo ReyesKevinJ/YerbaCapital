@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("imported dashboard navigates, preserves off-chain evidence and does not invent financial data", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Panel de control", exact: true })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeVisible();
   await page.keyboard.press("Tab");

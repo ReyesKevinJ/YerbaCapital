@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("every non-technical workspace explains its work with touch and keyboard help", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/");
+  await page.goto("/dashboard");
   for (const [role, title, explanation] of [
     ["borrower", "¿Qué significa dejar el lote en garantía?", "El certificado queda comprometido con ese préstamo"],
     ["lender", "¿Qué recibo como respaldo?", "El préstamo queda vinculado al certificado"],

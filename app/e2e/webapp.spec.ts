@@ -25,7 +25,7 @@ test("public link opens in an isolated visitor session and downloaded QR encodes
 });
 
 test("borrower stores a reproducible manifest for inspection, dryer and synthetic insurance", async ({ page }) => {
-  await page.goto("/"); await page.getByRole("navigation").getByRole("button", { name: "Lotes", exact: true }).click();
+  await page.goto("/dashboard"); await page.getByRole("navigation").getByRole("button", { name: "Lotes", exact: true }).click();
   await page.locator("summary").filter({ hasText: "Preparar documentos de un lote:" }).click();
   await page.getByLabel("Alias ficticio del secadero (opcional)", { exact: true }).fill("Secadero de prueba A");
   for (const name of ["Informe o foto de inspección de prueba", "Comprobante del secadero (opcional, de prueba)", "Póliza de seguro (opcional, de prueba)"]) {

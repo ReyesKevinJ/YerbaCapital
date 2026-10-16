@@ -4,7 +4,7 @@ test("appearance follows the device, persists an explicit choice and works in th
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/");
+  await page.goto("/dashboard");
   const appearance = page.getByLabel("Apariencia", { exact: true });
   await expect(appearance).toHaveValue("system");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -35,7 +35,7 @@ test("appearance remains usable when browser storage is unavailable", async ({ p
     Object.defineProperty(Storage.prototype, "getItem", { value() { throw new Error("Storage unavailable"); } });
     Object.defineProperty(Storage.prototype, "setItem", { value() { throw new Error("Storage unavailable"); } });
   });
-  await page.goto("/");
+  await page.goto("/dashboard");
   await page.getByLabel("Apariencia", { exact: true }).selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.getByLabel("Apariencia", { exact: true }).selectOption("light");
@@ -44,7 +44,7 @@ test("appearance remains usable when browser storage is unavailable", async ({ p
 
 test("mobile navigation exposes every destination without horizontal scrolling", async ({ page, isMobile }) => {
   test.skip(!isMobile, "Mobile navigation layout");
-  await page.goto("/");
+  await page.goto("/dashboard");
   const navigation = page.getByRole("navigation", { name: "Navegación principal" });
   const buttons = navigation.getByRole("button");
   for (const button of await buttons.all()) {
