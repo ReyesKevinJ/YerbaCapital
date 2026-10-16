@@ -8,19 +8,19 @@ El MVP se diseña exclusivamente para Stellar Testnet, Soroban, Freighter y USDC
 `registry` conserva roles, lotes, atestaciones, titularidad y gravámenes; `vault` decide sobre préstamos y ordena transferencias mediante el activo de liquidación.
 Las evidencias permanecen off-chain; los hechos físicos se registran mediante firmas de los roles autorizados y hashes de evidencia.
 La app consume clientes generados y un historial indexado; ni ella ni los servicios deciden permisos, deuda o liberación de colateral.
-El diseño conserva ADR-001 a ADR-005; las dos propuestas de §19 explicitan vacíos que deben resolverse antes de implementar los casos afectados.
+El diseño conserva ADR-001 a ADR-005; ADR-007 a ADR-010 cierran las decisiones de la primera demo y delimitan las extensiones futuras.
 
 ### Supuestos y estado del documento
 
 - **Estado:** arquitectura objetivo, no descripción de capacidades ya desplegadas. El repositorio incorpora una base off-chain ejecutable: app Next.js, gateway local y servicio de evidencia con almacenamiento por hash. Los contratos, clientes generados, indexador y Freighter todavía no están implementados. ADR-006 documenta el bootstrap original; el avance ejecutable y su validación se registran en README.md y docs/handoff.md.
-- **Fuentes internas:** [AGENTS.md](../AGENTS.md), especialmente §1.3, §3, §6, §7, §8.4, §8.5 y §11. [contract-spec.md](contract-spec.md) sigue siendo un espejo preliminar de §7; este trabajo no modifica su interfaz.
+- **Fuentes internas:** [AGENTS.md](../AGENTS.md), especialmente §1.3, §3, §6, §7, §8.4, §8.5 y §11. [contract-spec.md](contract-spec.md), versión de diseño 0.2.0, cierra las reglas de implementación y se refleja en §7. Todavía no hay ABI desplegada.
 - **Supuesto S1:** la demo usa lotes, actores, documentos y valuaciones sintéticos. Los números de §12 son ilustrativos, no cotizaciones ni condiciones de crédito.
 - **Supuesto S2:** cada lote tiene un custodio responsable, una identidad física segregada y un único certificado indivisible. No se fusionan lotes ni se fracciona su certificado en el MVP.
-- **Supuesto S3:** la venta con deuda de §8b es una propuesta de liquidación por etapas, pendiente de adopción en §19. No se promete intercambio atómico entre dinero, certificado y mercadería.
-- **Supuesto S4:** el deterioro físico y el gravamen son dimensiones independientes. Su representación definitiva debe reconciliarse con el estado combinado de AGENTS.md §7; §19 documenta la propuesta. Ninguna transferencia financiera acredita una recuperación física.
+- **Supuesto S3:** la venta con deuda de §8b es un diseño futuro excluido de la primera demo por ADR-008. No se promete intercambio atómico entre dinero, certificado y mercadería.
+- **Supuesto S4:** el deterioro físico y el gravamen son dimensiones independientes. ADR-007 adopta esta separación y la especificación 0.2.0 la refleja; §19 registra el resultado. Ninguna transferencia financiera acredita una recuperación física.
 - **Supuesto S5:** para la demostración se publican los archivos sintéticos necesarios para verificar sus hashes. En un uso futuro, cualquier tercero puede comprobar integridad si obtiene lícitamente los archivos; la publicidad del hash no vuelve público el documento privado.
-- **Supuesto S6:** no se modela una negociación de deuda después de `Defaulted`. Las condiciones de repago tardío, disputa y remediación se dejan a §17 y §18; el flujo de riesgo demostrado termina en el reclamo del certificado.
-- Se distinguen reglas arquitectónicas, ejemplos y propuestas. Las propuestas no reemplazan decisiones aceptadas ni autorizan cambios silenciosos en la especificación.
+- **Supuesto S6:** ADR-010 permite repagar hasta el reclamo del certificado, incluso después de `Defaulted`. Un pago parcial conserva default y el total libera el gravamen; después del reclamo no hay otro cobro on-chain. Disputas y recuperación jurídica siguen fuera de alcance.
+- Se distinguen reglas arquitectónicas, ejemplos y propuestas. Las propuestas futuras no reemplazan decisiones aceptadas ni autorizan cambios silenciosos en la especificación.
 
 ## 2. Diagrama de contexto
 
@@ -250,7 +250,7 @@ sequenceDiagram
 
 ### 8b. Venta del lote con préstamo vigente
 
-**Diseño propuesto, no capacidad ya cerrada en la especificación.** Se parte de `Funded` o `PartiallyRepaid`, certificado `Encumbered` y lote no deteriorado. La confirmación de venta acredita un hecho documentado; no libera colateral ni acredita pago. En S3, el comprador puede pagar deuda del vendedor como `payer`; no es necesario agregar un nuevo rol. El precio privado, el saldo comercial y las obligaciones de entrega permanecen fuera del protocolo.
+**Diseño futuro, excluido de la primera demo por ADR-008.** Se parte de `Funded` o `PartiallyRepaid`, certificado `Encumbered` y lote no deteriorado. La confirmación de venta acredita un hecho documentado; no libera colateral ni acredita pago. En S3, el comprador puede pagar deuda del vendedor como `payer`; no es necesario agregar un nuevo rol. El precio privado, el saldo comercial y las obligaciones de entrega permanecen fuera del protocolo.
 
 ```mermaid
 sequenceDiagram
@@ -284,7 +284,7 @@ sequenceDiagram
     Custodian-->>Buyer: Entrega física conforme al acuerdo y al procedimiento off-chain
 ```
 
-Si el pago es insuficiente, sigue habiendo gravamen y no se habilita el retiro ni la transferencia libre. La deuda puede cambiar entre la consulta y la confirmación; el importe de liquidación lo decide `vault`. La falla de una etapa posterior no revierte una anterior ya confirmada. No se promete protección de comprador equivalente a entrega contra pago ni se incorpora un mercado secundario. §19 propone adoptar o excluir este flujo; su ausencia no bloquea el camino feliz de la demo.
+Si el pago es insuficiente, sigue habiendo gravamen y no se habilita el retiro ni la transferencia libre. La deuda puede cambiar entre la consulta y la confirmación; el importe de liquidación lo decide `vault`. La falla de una etapa posterior no revierte una anterior ya confirmada. No se promete protección de comprador equivalente a entrega contra pago ni se incorpora un mercado secundario. §19 registra su exclusión de la primera demo; reconsiderarlo requiere una decisión futura y no bloquea el camino feliz.
 
 ### 8c. Deterioro, default y reclamo del certificado
 
@@ -315,7 +315,7 @@ sequenceDiagram
     Note over Lender,Custodian: No hay entrega automática ni garantía de recupero, calidad o valor
 ```
 
-La transición `Defaulted → Liquidated` describe el reclamo del derecho condicionado, no el cobro de la deuda en dinero ni una venta física. El evento de transferencia registra al nuevo titular y la causa de default; no es una liberación por repago. La representación de deterioro simultáneo a gravamen y cambio de titularidad requiere resolver la propuesta de §19. Para default por plazo, se sustituye el informe de deterioro por vencimiento superado y deuda pendiente; el resto del reclamo es el mismo.
+La transición `Defaulted → Liquidated` describe el reclamo del derecho condicionado, no el cobro de la deuda en dinero ni una venta física. El evento de transferencia registra al nuevo titular y la causa de default; no es una liberación por repago. La representación de deterioro simultáneo a gravamen y cambio de titularidad se adopta en ADR-007 y en la especificación 0.2.0. Para default por plazo, se sustituye el informe de deterioro por vencimiento superado y deuda pendiente; el resto del reclamo es el mismo.
 
 ### 8d. Retiro parcial con préstamo vigente
 
@@ -324,29 +324,28 @@ sequenceDiagram
     actor Owner as borrower / Owner
     actor Custodian as custodian
     participant Evidence as AttestationService
-    participant Registry as registry
     participant Vault as vault
+    participant Registry as registry
     participant Indexer
     Owner->>Evidence: Documentar cantidad a retirar y lote remanente
     Evidence-->>Owner: Hash y URI off-chain
-    Owner->>Registry: Autorizar retiro parcial de lote gravado con evidencia
-    Custodian->>Registry: Co-firmar el mismo retiro y remanente
-    Registry->>Vault: Solicitar decisión financiera sobre remanente
+    Owner->>Vault: Autorizar retiro parcial del lote gravado con evidencia
+    Custodian->>Vault: Co-firmar el mismo retiro y remanente
     Vault->>Registry: Consultar lote, valuación vigente y riesgo
     Note over Vault: Comparar deuda vigente con capacidad del remanente
     alt Remanente suficiente y lote elegible
-        Vault-->>Registry: Autorizar financieramente esta reducción
+        Vault->>Registry: Ordenar reducción con las co-firmas de esta operación
         Registry-->>Indexer: PartialWithdrawal, cantidad y remanente
         Note over Registry,Vault: Conserva Encumbered y el préstamo sigue activo
         Custodian-->>Owner: Ejecutar retiro físico conforme a la constancia acordada
     else Remanente insuficiente, deterioro o valuación vencida
-        Vault-->>Registry: No autorizar reducción
-        Registry-->>Owner: El lote y su gravamen permanecen sin cambios
+        Vault-->>Owner: No autorizar reducción
+        Note over Registry,Vault: El lote y su gravamen permanecen sin cambios
         Note over Owner,Custodian: No hay retiro autorizado ni evento PartialWithdrawal
     end
 ```
 
-La decisión de `vault` y la actualización autorizada en `registry` pertenecen a una misma operación on-chain; una aprobación vieja no sirve como permiso reutilizable. La valuación del remanente se escala proporcionalmente sin renovar su fecha de publicación. La logística nunca queda protegida por atomicidad con la cadena: custodio y titular deben documentar el retiro y conciliar lo autorizado con lo efectivamente entregado. Si hay una diferencia, se registra una nueva atestación; no se edita la historia. La convención temporal entre constancia, autorización y salida física se resuelve en §17/§18.
+La decisión de `vault` y la actualización autorizada en `registry` pertenecen a una misma operación on-chain; una aprobación vieja no sirve como permiso reutilizable. La valuación del remanente se escala proporcionalmente sin renovar su fecha de publicación. La logística nunca queda protegida por atomicidad con la cadena: custodio y titular deben documentar el retiro y conciliar lo autorizado con lo efectivamente entregado. Si hay una diferencia, se registra una nueva atestación; no se edita la historia. ADR-009 fija la coordinación on-chain; el registro acredita la reducción documentada autorizada, sin garantizar una entrega física atómica. Los procedimientos de discrepancia y entrega pertenecen a §18.
 
 ### 8e. Flujos auxiliares: administración, rechazo y cancelación
 
@@ -416,7 +415,7 @@ stateDiagram-v2
 
 Las dimensiones están correlacionadas: `Rejected` no admite emisión; `Closed` no conserva un certificado utilizable; `Encumbered` implica una solicitud o un préstamo pendiente sobre ese mismo lote. El diagrama concentra cambios de etapa. Una transferencia libre autorizada por Owner conserva `Receipted` y emite `ReceiptTransferred`. La vuelta desde `Encumbered` emite `CollateralUnlocked` si se cancela la solicitud o se paga la deuda total, y `ReceiptTransferred` si `vault` ejecuta el reclamo del `lender` en `Defaulted`. Una inspección de `verifier` conserva la etapa si no acredita deterioro y emite `InspectionRecorded`; una venta documentada por `verifier` emite `SaleConfirmed` sin cambiarla. Un retiro parcial autorizado por Owner + `custodian` y, si gravado, `vault`, emite `PartialWithdrawal` sin cerrar el lote. Una valuación de `price_oracle` sobre certificado emitido emite `ValuationPosted` sin cambiar gravamen. Estas operaciones cambian atributos e historial, aunque conserven el nombre de estado. La inspección no puede incrementar masa sin nueva verificación; cualquier pérdida se documenta y conserva el balance de masa.
 
-`Impaired` impide nuevos fondeos, nuevas solicitudes y retiros parciales; **no elimina una deuda ni su gravamen**. Al reclamar, el certificado pasa al prestamista y queda sin el gravamen de ese préstamo, mientras la dimensión física continúa `Impaired`. El repago total de un préstamo deteriorado, si la especificación admite ese camino antes de default, libera el gravamen pero tampoco rehabilita el lote. No se permite nueva financiación de ese certificado por haber cambiado de dueño. La remediación y nueva verificación no se habilitan en esta entrega: su protocolo queda en §17. Esta separación motiva §19, propuesta B.
+`Impaired` impide nuevos fondeos, nuevas solicitudes y retiros parciales; **no elimina una deuda ni su gravamen**. Al reclamar, el certificado pasa al prestamista y queda sin el gravamen de ese préstamo, mientras la dimensión física continúa `Impaired`. El repago total de un préstamo deteriorado, según ADR-010, libera el gravamen pero tampoco rehabilita el lote. No se permite nueva financiación de ese certificado por haber cambiado de dueño. La remediación y nueva verificación no se habilitan en esta entrega: su protocolo queda fuera de la primera demo. Esta separación se adoptó como ADR-007.
 
 ### 9.2 Financiamiento
 
@@ -431,19 +430,21 @@ stateDiagram-v2
     PartiallyRepaid --> Repaid : payer cancela deuda restante / LoanRepaid + CollateralUnlocked
     Funded --> Defaulted : solicitante publico, deuda positiva y (plazo superado o Impaired) / LoanDefaulted
     PartiallyRepaid --> Defaulted : solicitante publico, deuda positiva y (plazo superado o Impaired) / LoanDefaulted
+    Defaulted --> Repaid : payer cancela deuda antes del reclamo / LoanRepaid + CollateralUnlocked
+    Defaulted --> Defaulted : payer abona parcialmente antes del reclamo / LoanRepaid
     Defaulted --> Liquidated : lender reclama y vault adjudica certificado / CollateralClaimed + ReceiptTransferred
     Cancelled --> [*]
     Repaid --> [*]
     Liquidated --> [*]
 ```
 
-El plazo se cuenta desde el fondeo, no desde la solicitud. En el baseline de AGENTS.md, el default por plazo exige que el vencimiento haya sido superado; no ocurre antes por una caída de precio sola. El deterioro habilita default anticipado de un préstamo efectivamente fondeado y con deuda. Si el lote se deteriora en `Requested`, no se fondea ni se declara deuda inexistente: queda pendiente de cancelación por el `borrower` y de las reglas de solicitudes bloqueadas a cerrar en §17. El mero transcurso del tiempo habilita la declaración; alguien debe promoverla.
+El plazo se cuenta desde el fondeo, no desde la solicitud. En el baseline de AGENTS.md, el default por plazo exige que el vencimiento haya sido superado; no ocurre antes por una caída de precio sola. El deterioro habilita default anticipado de un préstamo efectivamente fondeado y con deuda. Si el lote se deteriora en `Requested`, no se fondea ni se declara deuda inexistente: queda pendiente de cancelación por el `borrower` y solo puede salir por cancelación en esta versión. El mero transcurso del tiempo habilita la declaración; alguien debe promoverla.
 
-El retiro parcial y la confirmación de venta no constituyen estados nuevos de préstamo. La venta de §8b utiliza el camino existente hacia `Repaid` y solo entonces la transferencia libre. `Liquidated` no acredita recupero monetario ni cancelación jurídica de todo reclamo residual; esa interpretación se define off-chain.
+El retiro parcial y la confirmación de venta no constituyen estados nuevos de préstamo. La venta futura de §8b utilizaría el camino existente hacia `Repaid` y solo entonces la transferencia libre. `Liquidated` no acredita recupero monetario ni cancelación jurídica de todo reclamo residual; esa interpretación se define off-chain.
 
 ## 10. Catálogo de eventos de negocio
 
-Se conservan los nombres de AGENTS.md §7.6. Son hechos de negocio, no un diseño de tipos, campos de interfaz o temas de publicación. **Todos** incluyen procedencia verificable: contrato emisor, red, transacción y orden en el ledger. Los eventos de hechos físicos llevan hash de evidencia y autoría; el URI se vincula fuera de cadena. Los datos listados son mínimos conceptuales, sujetos a conciliación de la especificación, sin información personal o comercial privada.
+Se conservan los nombres de AGENTS.md §7.10. Son hechos de negocio, no un diseño de tipos, campos de interfaz o temas de publicación. **Todos** incluyen procedencia verificable: contrato emisor, red, transacción y orden en el ledger. Los eventos de hechos físicos llevan hash de evidencia y autoría; el URI se vincula fuera de cadena. Los datos listados son mínimos conceptuales, según la especificación 0.2.0, sin información personal o comercial privada.
 
 `Indexer`, `App` y `Auditor` son consumidores. `App` obtiene el historial mediante `Indexer` y confirma decisiones mediante contratos; `Auditor` contrasta la procedencia con la cadena. Los eventos de transferencia del SAC complementan los financieros, sin reemplazarlos ni contar un mismo pago dos veces.
 
@@ -472,7 +473,7 @@ Se conservan los nombres de AGENTS.md §7.6. Son hechos de negocio, no un diseñ
 | `RoleRevoked` | Se revoca un rol hacia adelante | `admin` | Dirección, rol y autoridad revocante | `registry` → Indexer, App, Auditor | 8e |
 | `ParamsUpdated` | Cambia una política dentro de sus límites | `admin` | Componente responsable, política modificada, valores y momento de aplicación | `registry` o `vault` según política → Indexer, App, Auditor | 8e |
 
-El inicio y fin de diagramas no agregan eventos distintos de los hechos que los originan. El fin de `Unissued` conceptual por rechazo no implica quemar un certificado inexistente. El cese del gravamen por adjudicación se evidencia conjuntamente con `ReceiptTransferred` y `CollateralClaimed`, sin confundirlo con un repago. La relación exacta entre eventos y atestaciones se termina de especificar en §17; el catálogo no renumera ni define una nueva interfaz.
+El inicio y fin de diagramas no agregan eventos distintos de los hechos que los originan. El fin de `Unissued` conceptual por rechazo no implica quemar un certificado inexistente. El cese del gravamen por adjudicación se evidencia conjuntamente con `ReceiptTransferred` y `CollateralClaimed`, sin confundirlo con un repago. La relación exacta entre eventos y atestaciones se define en la especificación 0.2.0; SaleConfirmed permanece reservado para el diseño futuro, sin emisión ni capacidad de venta en el primer MVP.
 
 ## 11. Flujo de evidencia y oráculo físico
 
@@ -541,7 +542,7 @@ El redondeo nunca debe permitir pedir o retirar por encima de la capacidad real:
 | Precio y obsolescencia | Sobreestimación de capacidad o deuda superior a recupero | Valuación fechada, haircut y límite LTV; no fondear ni retirar con valuación vencida | No hay liquidez garantizada, margin call ni subasta automática |
 | Custodia y doble prendado fuera de cadena | Un mismo inventario respalda derechos incompatibles | Etiquetas y segregación de demo, constancia del custodio y exclusividad del certificado dentro de `registry` | No detecta gravámenes externos ni engaños entre sistemas |
 | Claves de actores, oráculo o administrador | Atestaciones o configuración indebidas | Firma explícita, red correcta, privilegios limitados y revocación auditable | Rotación, continuidad de custodia y recuperación sin abuso requieren diseño posterior |
-| Configuración administrativa | Política inconsistente o daño sobre contratos vigentes | Límites, historial de cambios y ausencia de poder de mover valor | Fijación de condiciones del préstamo y efecto prospectivo de cambios pendientes en §17 |
+| Configuración administrativa | Política inconsistente o daño sobre contratos vigentes | Límites, historial de cambios y ausencia de poder de mover valor | Condiciones financieras fijas por préstamo según ADR-010; la política de calidad sigue siendo explícita |
 | Código o integración contractual | Movimiento incorrecto o gravamen inconsistente | Responsabilidades únicas, especificación y pruebas de autorizaciones y transiciones antes de demo | Arquitectura no equivale a auditoría; no hay fondos reales |
 | Evidencia indisponible o privada filtrada | No se puede auditar el hash o se expone información | Archivos sintéticos, copia disponible, acceso separado y hashes de contenido | Un hash no restaura archivos; políticas de retención y protección deben definirse |
 | Indexador desactualizado o histórico incompleto | Cronología incorrecta o apariencia engañosa de cancelación | Procedencia, deduplicación, progreso y consulta autoritativa al contrato | No inventar eventos faltantes ni ocultar lagunas |
@@ -551,7 +552,7 @@ El redondeo nunca debe permitir pedir o retirar por encima de la capacidad real:
 | PSAV/CNV y AML/CFT | Actividades futuras pueden requerir encuadre y obligaciones | Sin onboarding real ni fondos reales; no se afirma cumplimiento | Evaluación especializada del rol de cada operador y normativa aplicable, fuera de esta arquitectura |
 | Cambiario y descalce de unidades | Ingresos/costos en ARS y deuda expresada en activo estable pueden divergir | Valuación en activo del préstamo; ninguna conversión o salida a ARS | Sin off-ramp, cobertura ni equivalencia asegurada; evaluación futura de normativa cambiaria y tributaria |
 | UX para actores no cripto | Firma de una operación o red equivocada; confusión entre certificado y mercadería | Identidad de red y autorización explícitas; separación conceptual de estado físico y financiero | Producto/UX define comprensión, recuperación de tareas y validación con usuarios |
-| Venta por etapas | Comprador paga pero no recibe el certificado o la mercadería | Solo caso sintético, no atomicidad declarada y sin liberación por mera confirmación de venta | Propuesta A pendiente; garantías adicionales requieren otro diseño y evaluación legal |
+| Venta por etapas | Comprador paga pero no recibe el certificado o la mercadería | Solo caso sintético, no atomicidad declarada y sin liberación por mera confirmación de venta | Diseño excluido por ADR-008; garantías adicionales requieren otro diseño y evaluación legal |
 
 Los resets de Testnet pueden borrar también transacciones y datos históricos; guardar un enlace no garantiza que siga disponible después del reset. Debe conservarse el paquete de evidencia sintética de cada demostración, sin presentarlo como un registro on-chain todavía vigente. [Fuente: Stellar, resets de redes de prueba](https://developers.stellar.org/docs/build/guides/basics/automate-reset-data).
 
@@ -574,7 +575,7 @@ El ganado requiere otro módulo: cada animal tiene identidad individual, sanidad
 
 ## 15. Alcance del MVP y guion de demo
 
-**Dentro:** registro de roles; lotes de canchada; co-firma de ingreso; certificado no fungible por lote; valuación fechada; solicitud con gravamen; USDC de prueba pass-through; repagos parciales y totales; inspección; deterioro y reclamo; historial público verificable; firma explícita mediante Freighter en Testnet. El retiro parcial se incluye como capacidad a demostrar adicionalmente después de cerrar su especificación. La venta de §8b se diseña, pero queda condicionada a propuesta A y no se suma como requisito a los diez pasos.
+**Dentro:** registro de roles; lotes de canchada; co-firma de ingreso; certificado no fungible por lote; valuación fechada; solicitud con gravamen; USDC de prueba pass-through; repagos parciales y totales; inspección; deterioro y reclamo; historial público verificable; firma explícita mediante Freighter en Testnet. El retiro parcial se incluye como capacidad a demostrar adicionalmente después de cerrar su especificación. La venta de §8b queda como diseño futuro, excluido por ADR-008, y no se suma como requisito a los diez pasos.
 
 **Fuera:** mainnet, fondos o inversores reales, KYC/AML operativo, integración bancaria o con emisores de warrants, conversión USDC/ARS, seguros reales, gobernanza DAO, auditoría externa, pool/escrow, mercado secundario, fraccionamiento del certificado, sensores en tiempo real, otros commodities y ganado. Tampoco hay garantía de rendimiento, recupero o cumplimiento regulatorio.
 
@@ -591,7 +592,7 @@ El ganado requiere otro módulo: cada animal tiene identidad individual, sanidad
 | 9. Deteriorar segundo lote, default y reclamo | Segundo lote con su propio préstamo fondeado; §8c y §9 | `LotImpaired`, `LoanDefaulted`, `ReceiptTransferred`, `CollateralClaimed`; sin fingir recupero físico |
 | 10. Consultar historia de ambos lotes | Indexador con procedencia y consulta pública; §5 y §10 | Línea de tiempo correlacionada con contratos, transacciones y hashes |
 
-La arquitectura permite planificar los diez pasos; **no certifica que la demo ya los ejecute**. El paso 9 exige resolver la representación de deterioro y gravamen señalada en propuesta B. El despliegue, la generación de clientes y los hashes de operaciones reales de Testnet pertenecen a las siguientes tareas de implementación y release.
+La arquitectura permite planificar los diez pasos; **no certifica que la demo ya los ejecute**. El paso 9 utiliza la separación adoptada por ADR-007 y requiere su implementación y pruebas. El despliegue, la generación de clientes y los hashes de operaciones reales de Testnet pertenecen a las siguientes tareas de implementación y release.
 
 ## 16. Criterios de aceptación de la arquitectura
 
@@ -611,30 +612,28 @@ Los checks indican revisión del documento, no aceptación de código ni de la d
 - [x] Las fronteras documentales están explícitas; §17 delega implementación y §18 delega producto/legal sin diseñarlos aquí.
 - [x] Los nueve bloques Mermaid fueron renderizados con Mermaid CLI, sin errores de sintaxis; esta validación no sustituye la revisión semántica de las propuestas.
 
-**Pendiente de aceptación del diseño:** adoptar o rechazar las propuestas A/B de §19 y reconciliar §7 de AGENTS.md con la futura especificación. No se considera resuelto ese trabajo por marcar los checks documentales.
+**Resultado de decisiones:** ADR-007 acepta la separación de deterioro y gravamen; ADR-008 excluye venta de la primera demo; ADR-009 cierra co-firmas/coordinación y ADR-010 cierra política y repagos. AGENTS.md §7 y la especificación 0.2.0 se reconciliaron. La implementación y aceptación Testnet siguen pendientes.
 
 ## 17. Pendiente para la especificación del smart contract
 
-Esta lista define preguntas para el Contract Engineer; **no aporta sus soluciones de implementación**. Los valores de referencia de AGENTS.md §7.5 siguen siendo el baseline, pero su ratificación y límites codificados corresponden a la especificación, no a este documento.
+Las decisiones necesarias para la primera demo quedaron cerradas en [contract-spec.md](contract-spec.md), versión de diseño 0.2.0, y su espejo AGENTS.md §7. Esta sección conserva el reparto de responsabilidades: el detalle de implementación pertenece a ese documento, no a arquitectura.
 
-1. **Co-firma:** mecanismo de recolección de autorizaciones de `verifier` + `custodian`, y Owner + `custodian`: transacción multi-auth o dos pasos. Debe preservarse identidad del hecho y la evidencia; una aprobación parcial no equivale a verificación completa.
-2. **Relación entre contratos:** importación de la interfaz de `registry` desde `vault` y reconocimiento de `vault` como único autorizante del gravamen, su liberación y la adjudicación por default. El retiro gravado exige una decisión financiera vinculada al retiro concreto.
-3. **Representación numérica:** tipos, decimales, unidades definitivas de masa —kg o g— y dinero, precisión de tiempo, redondeo exacto, residuos, aplicación de pagos y prevención de duplicación de interés.
-4. **Persistencia:** organización del storage, estrategia de TTL y restauración de entradas archivadas. Definir continuidad del acceso a derechos y deudas sin diseñarla desde arquitectura.
-5. **Errores:** catálogo final y numeración estable, respetando el baseline y las reglas de evolución; no se enumeran aquí.
-6. **Parámetros:** valores definitivos, límites codificados y alcance por commodity de LTV, haircut y ajustes, vigencia de valuación, bandas de humedad, peso mínimo, tasa máxima, plazo y período de gracia. No introducir default distinto del baseline al definir la gracia sin aprobación.
-7. **Escrow:** confirmar su ausencia conforme a ADR-003. Cualquier caso con custodia de fondos, aun motivado por la venta, requiere un ADR nuevo antes de implementarse; no queda habilitado por este pendiente.
-8. **Pausa:** mecanismo y alcance; qué nuevas operaciones bloquea y cómo preserva repago, consulta y derechos adquiridos. La referencia vigente permite pausar nuevos préstamos, no inmovilizar fondos a discreción.
-9. **Estado físico y certificado:** resolver propuesta B y la discrepancia del diagrama combinado de §7 frente a `Impaired` con préstamo activo o ya reclamado; asegurar que liberar o adjudicar no cure el deterioro.
-10. **Remediación:** determinar si se habilitará una nueva verificación de `Impaired`, con qué autorizaciones/evidencia y efectos sobre el gravamen. El diagrama vigente sugiere re-verificación, pero sus precondiciones detalladas solo cubren el ingreso inicial. No implementar una salida inferida.
-11. **Default y pagos tardíos:** deuda positiva, préstamos elegibles, vencimiento y gracia; relación entre repago, declaración y reclamo si compiten; tratamiento de deuda residual y prohibición de doble recupero después de adjudicar.
-12. **Venta:** adoptar o excluir propuesta A; precisar qué acredita `SaleConfirmed`, si puede repetirse y cómo se vincula a evidencia y préstamo sin publicar precio comercial privado. No convertir la confirmación en liberación automática.
-13. **Retiros:** consistencia conjunta de decisión de `vault` y actualización de `registry`, fecha original de valuación del remanente, balance de masa y documentación de autorización frente a salida física efectivamente realizada. No confundir intención de retiro con una entrega ya probada.
-14. **Solicitudes bloqueadas:** tratamiento de `Requested` que se deteriora, pierde elegibilidad o queda sin fondear; cancelación, eventual expiración y sus efectos sin adjudicar un préstamo nunca fondeado.
-15. **Inspecciones y riesgo:** distinguir observaciones, pérdida de masa, deriva de humedad y deterioro formal; vigencia de ajustes, reconciliación de la valuación con pérdidas de peso y efecto de nuevas atestaciones. No habilitar aumentos de cantidad sin nueva verificación.
-16. **Política y roles vigentes:** fijación de condiciones por préstamo, efecto prospectivo de parámetros y revocaciones, separación de roles por lote y continuidad si un custodio o verificador deja de estar habilitado.
-17. **Evolución del catálogo:** correspondencia final de atestaciones y eventos, datos mínimos de auditoría y preservación de nombres existentes. Resolver explícitamente `ReceiptTransferred` junto a `CollateralClaimed` en el reclamo, sin fingir pago.
-18. **Configuración y arranque:** autoridad inicial y enlace entre componentes de un mismo despliegue Testnet; selección inequívoca del activo. El arranque no introduce un nuevo evento de negocio sin especificación.
+| Tema delegado | Resolución / referencia |
+|---|---|
+| Recolección técnica de co-firmas | ADR-009; una operación con autorización de todos los actores, sin aceptación física intermedia |
+| Interfaz registry–vault e invocador exclusivo | Especificación §7.4 y §7.13; vínculo único previo al ingreso de lotes |
+| Tipos numéricos, decimales, unidades y redondeo exacto | Especificación §7.2 y §7.8 |
+| Organización del storage, TTL y restauración | Especificación §7.12; trabajo de implementación y release |
+| Catálogo de errores y numeración | Especificación §7.11; mantiene los códigos existentes y agrega al final |
+| Parámetros y límites codificados | Especificación §7.9; nunca definidos como autoridad en la app |
+| Escrow | Ausente por ADR-003 y ADR-008; incorporarlo requiere otro ADR |
+| Mecanismo de pausa | Especificación §7.7 y ADR-010; preserva repago, cancelación, reclamo y consulta |
+| Deterioro, certificado y gravamen | ADR-007, adoptado sin rehabilitación en el primer MVP |
+| Repago tardío y cierre por adjudicación | ADR-010 y especificación §7.7; no doble cobro on-chain |
+| Retiro gravado y balance de masa | ADR-009 y especificación §7.6–§7.8; sin ciclo entre contratos |
+| Venta y re-verificación | Fuera de la primera demo; necesitan diseño adicional antes de habilitarse |
+
+Pendientes ejecutivos: implementar esas reglas, probar permisos y transiciones, publicar la interfaz resultante y generar clientes. No se confunde la especificación cerrada con código o despliegue ya disponibles.
 
 ## 18. Pendiente para Producto/UX y para Negocio/Legal
 
@@ -646,7 +645,7 @@ Esta lista define preguntas para el Contract Engineer; **no aporta sus solucione
 - Definir tratamiento de consultas desactualizadas, indexación incompleta, firmas rechazadas, confirmaciones pendientes y reanudación de tareas sin duplicar pagos.
 - Acordar cómo se consulta evidencia pública sintética y qué tratamiento requerirían documentos privados en un futuro; un URI no prueba disponibilidad ni veracidad.
 - Diseñar la demostración de los diez pasos, la comprensión por actores no cripto y los criterios de accesibilidad/usabilidad, sin introducir cálculos financieros autoritativos en producto.
-- Si se adopta propuesta A, explicar el riesgo de etapas no atómicas y la diferencia entre confirmar venta, pagar deuda, transferir certificado y recibir mercadería.
+- Si se reconsidera en el futuro la venta excluida por ADR-008, explicar el riesgo de etapas no atómicas y la diferencia entre confirmar venta, pagar deuda, transferir certificado y recibir mercadería.
 - Establecer documentación de metodología y evidencias de demo, sin afirmaciones de retornos, calidad garantizada o readiness de producción.
 
 ### Negocio/Legal — Docs & Pitch, con revisión profesional externa pendiente
@@ -661,31 +660,24 @@ Esta lista define preguntas para el Contract Engineer; **no aporta sus solucione
 - Si se adopta la venta por etapas, definir acuerdos, riesgo del comprador que paga deuda ajena, saldo comercial y derechos de restitución/entrega; el MVP no provee garantías jurídicas o escrow.
 - Ninguna de estas tareas implica habilitar mainnet, fondos reales, seguros operativos ni un proceso de cumplimiento dentro del hackathon.
 
-## 19. ADRs propuestos
+## 19. Resultado de los ADRs propuestos
 
-Las propuestas siguientes **no están aceptadas ni sustituyen ADR-001 a ADR-005**. Permanecen en este documento para revisión; solo al adoptarlas se les asignará número, se crearán sus archivos y se actualizará el índice de decisiones y la especificación mediante el proceso de AGENTS.md §6.4. No se modifican en esta entrega `AGENTS.md` ni `docs/contract-spec.md`.
+La revisión de las propuestas se cerró al avanzar en el orden acordado con el responsable del proyecto:
 
-### Propuesta A — Sale settlement without escrow
+- **Propuesta A — Sale settlement without escrow:** no se incorpora a la primera demo. [ADR-008](adr/008-defer-sale-settlement.md) documenta contexto, exclusión y consecuencias. El diagrama §8b se conserva como diseño futuro, sin autorizar código de venta ni escrow.
+- **Propuesta B — Preserve impairment across receipt lifecycle:** aceptada como [ADR-007](adr/007-independent-physical-and-receipt-state.md). El estado físico permanece independiente al liberar o adjudicar el certificado.
+- [ADR-009](adr/009-atomic-multi-party-authorization.md) cierra co-firmas y coordinación de retiros gravados sin ciclos contractuales.
+- [ADR-010](adr/010-loan-policy-and-post-default-repayment.md) cierra snapshot de política financiera, redondeo, pausa y repagos hasta el reclamo.
 
-- **Contexto:** se exige diagramar venta con deuda, pero el baseline solo define confirmación de venta y permite que un tercero repague. No define liquidación comercial ni protección del comprador. ADR-003 excluye pool y custodia persistente.
-- **Decisión propuesta:** para un caso sintético y fuera del guion mínimo, la venta se registra con evidencia; el comprador puede cancelar deuda como pagador; después el titular transfiere el certificado libre y el nuevo titular acuerda retiro con el custodio. Se usan capacidades ya previstas, sin agregar una garantía de intercambio atómico.
-- **Consecuencias:** conserva pass-through y las autoridades de `registry`/`vault`, pero el pago previo expone al comprador al incumplimiento del vendedor. Las etapas posteriores no revierten pagos confirmados. Si ese riesgo no resulta aceptable, excluir la demostración de venta; cualquier entrega contra pago o escrow exige otra decisión y revisión, no una ampliación tácita.
-- **Estado / decisión requerida:** propuesta pendiente de aceptación por Architect y responsables de producto/legal. §8b no se implementa hasta resolverla.
-
-### Propuesta B — Preserve impairment across receipt lifecycle
-
-- **Contexto:** AGENTS.md §7 combina estado físico y situación del certificado. El paso a `Impaired` no detalla cómo conserva un gravamen activo; la adjudicación se expresa desde `Encumbered` hacia `Receipted`, aunque el guion requiere reclamar un lote deteriorado. La recuperación y nueva verificación tampoco tienen precondiciones completas. Inferir que el reclamo borra deterioro contradice la separación entre derechos y hechos físicos.
-- **Decisión propuesta:** mantener el estado físico independiente del gravamen y la titularidad a nivel de reglas de negocio. El deterioro preserva el vínculo al préstamo; el reclamo cambia Owner y cesa ese gravamen, pero no altera `Impaired` ni genera disponibilidad física. La representación técnica queda a Smart Contract.
-- **Consecuencias:** permite el paso 9 de la demo sin perder trazabilidad ni habilitar nuevo fondeo de un lote deteriorado. Requiere reconciliar la máquina y sus precondiciones en §7 y la especificación, con pruebas de reclamo y liberación sin rehabilitación implícita. Puede afectar la futura interfaz, por lo que clientes y app deben derivarse de esa especificación conciliada.
-- **Estado / decisión requerida:** propuesta pendiente de aceptación por Architect y Contract Engineer antes de implementar el camino de deterioro/default; el principio de que una transferencia no cura un daño físico sigue siendo obligatorio.
+Estas decisiones no sustituyen ADR-001 a ADR-005. Sus consecuencias técnicas están en la especificación 0.2.0 y AGENTS.md §7. No se realizó un despliegue por adoptar el diseño.
 
 ### Handoff
 
 - Persona: Architect
-- Changed: docs/architecture.md
-- ABI change: no; catálogo conceptual y propuestas pendientes, sin interfaz implementada ni modificación del baseline
-- Tests: nueve diagramas Mermaid renderizados sin errores; revisión de correspondencia entre eventos, flujos y estados; sin cambios de código ni pruebas financieras ejecutadas
-- Evidence: validación documental local; sin despliegues, hashes de transacciones ni evidencia de demo creada
-- Next owner: Contract Engineer — redactar y conciliar docs/contract-spec.md a partir de la sección 17; resolver propuesta B antes del flujo de riesgo
-- Next owner: App Engineer / Docs & Pitch — tomar la sección 18 y las capacidades de §6 sin inferir firmas técnicas ni reglas financieras locales
-- Open questions: aceptación o exclusión de venta por etapas; representación de deterioro y gravamen; co-firmas; liquidación de pagos tardíos y deuda residual; parámetros y pausa; documentación temporal de retiros; acceso y retención de evidencia; alcance jurídico del certificado
+- Changed: docs/architecture.md, docs/contract-spec.md, AGENTS.md, ADR-007 a ADR-010
+- ABI change: diseño 0.2.0 previo a implementación; no hay ABI desplegada que migrar
+- Tests: correspondencia documental de eventos, permisos y transiciones; diagramas actualizados sin agregar código a arquitectura
+- Evidence: documentos de diseño; sin nuevas transacciones on-chain
+- Next owner: Contract Engineer — implementar registry y vault según la especificación 0.2.0
+- Next owner: App Engineer / Docs & Pitch — tomar §18, la matriz de capacidades y los clientes generados cuando estén disponibles
+- Open questions: cuestiones de producto/legal de §18 y extensiones fuera del primer MVP; ninguna regla financiera de la primera demo se delega a la app
