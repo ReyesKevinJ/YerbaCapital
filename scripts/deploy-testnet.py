@@ -92,8 +92,23 @@ save()
 
 if "usdc" not in state["contracts"]:
     asset = "USDC:" + state["addresses"]["usdc-issuer"]
-    identifier = cli(["contract", "asset", "deploy", "--asset", asset,
-                      "--source-account", "usdc-issuer", *net], "Deploy test USDC SAC")
+    identifier = None
+    for prior_path in STATE.glob("deployment-*.json"):
+        if prior_path == manifest:
+            continue
+        prior = json.loads(prior_path.read_text())
+        if prior.get("addresses", {}).get("usdc-issuer") == state["addresses"]["usdc-issuer"]:
+            identifier = prior.get("contracts", {}).get("usdc")
+            if identifier:
+                name = json.loads(cli(["contract", "invoke", "--id", identifier, "--source-account", "admin",
+                                       "--send=no", *net, "--", "name"]))
+                if name != asset:
+                    raise RuntimeError("Existing SAC does not match the demo issuer")
+                print(f"Reusing verified test USDC SAC: {identifier}", flush=True)
+                break
+    if not identifier:
+        identifier = cli(["contract", "asset", "deploy", "--asset", asset,
+                          "--source-account", "usdc-issuer", *net], "Deploy test USDC SAC")
     state["contracts"]["usdc"] = identifier
     save()
 for name in ("registry", "vault"):
