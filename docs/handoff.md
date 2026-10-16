@@ -105,3 +105,34 @@ Scope: local off-chain foundation, following the architecture document. No finan
 - Evidence: local verification only
 - Next owner: Docs & Pitch — document the full demo once Testnet operations exist
 - Open questions: no claim of completed MVP, production readiness, regulatory compliance or financial behavior
+
+## Contract implementation — 2026-10-16
+
+### Handoff
+- Persona: Contract Engineer
+- Changed: contracts/registry/**, contracts/vault/**, Cargo.toml, Cargo.lock, rust-toolchain.toml
+- ABI change: yes — first executable ABI 0.2.0 from docs/contract-spec.md; all registry/vault operations, independent physical/receipt states, loan policy snapshot, explicit business events and stable errors 1–28. LoanDefaulted carries by_impairment to distinguish the business cause.
+- Tests: cargo test --workspace --locked → 34 passed; cargo clippy --workspace --all-targets --locked -- -D warnings → passed; stellar contract build for registry and vault → passed; snapshots reviewed as synthetic state.
+- Evidence: native execution with real registry Wasm and SAC test harness; not yet a Testnet/Freighter acceptance run.
+- Next owner: DevOps / Release Engineer — run committed Testnet deployment; Integration Engineer — generate clients from deployed ABI.
+- Open questions: wallet multi-party authorization and event projection remain integration work; sale with debt is excluded by ADR-008.
+
+### Security checklist (AGENTS.md §8.6)
+- Mutations authenticate actors before exercising capabilities; role-gated operations also check current roles. Missing-auth tests cover both contracts.
+- Admin only configures roles, bounded policy and pause; it has no funds/collateral rescue entrypoint. Contract-only lock, unlock and default transfer authenticate the immutable vault.
+- Ownership and a single linked loan prevent double pledging on this registry; physical double pledging elsewhere remains a custody/legal risk.
+- Funding is once only, with current physical eligibility/fresh valuation and snapshotted financial policy; failed SAC transfers revert state and balances.
+- Default requires expired maturity+grace or attested impairment; claim is lender-only, once, and freezes exposure. Repayment after claim is rejected.
+- Checked integer arithmetic; floor capacity, ceil simple interest, interest-first bounded repayment. No truncating financial casts.
+- Parameters are bounded; existing loan financial policies do not change. Error numbers are stable and events have explicit PascalCase business topics.
+- Contract storage/events have addresses, quantities, enums and hashes, no PII/URI/free text. Persistent writes renew TTL; read paths also touch relevant entries.
+- Tests exercise authorization, invalid states, edge values, time travel, exact event content, mass balance and real SAC balances. Local secrets and artifacts remain ignored.
+
+### Handoff
+- Persona: DevOps / Release Engineer
+- Changed: scripts/check-contracts.sh, scripts/install-stellar-ci.sh, scripts/deploy.sh, scripts/deploy-testnet.py, .github/workflows/ci.yml, .gitignore
+- ABI change: no
+- Tests: local contract checks passed; deployment script syntax checked. CI pins CLI 28.1.0 with official release SHA-256 and Rust 1.92.0.
+- Evidence: deployment pending; docs/evidence.md is populated only with RPC-confirmed transactions.
+- Next owner: DevOps / Release Engineer — execute deployment from clean committed source and verify hosted CI.
+- Open questions: Testnet resets require renewed demo identities/state; no mainnet path is provided.

@@ -18,9 +18,27 @@ El recorrido implementado es **app → API local → servicio de evidencia → a
 
 ## Qué sigue pendiente
 
-Contratos `registry` y `vault`, clientes generados, indexador de eventos, firma Freighter y transferencias de USDC de prueba. No hay contratos desplegados, lotes on-chain ni un flujo financiero operativo. La configuración exige `NEXT_PUBLIC_CHAIN_ENABLED=false`; llenar IDs no habilita operaciones inexistentes.
+Los contratos `registry` y `vault` están implementados y probados localmente. Todavía faltan el despliegue documentado, los clientes generados, el indexador y la firma Freighter. La app sigue funcionando en modo off-chain: `NEXT_PUBLIC_CHAIN_ENABLED=false`; no presenta estados financieros inventados.
 
-Las propuestas de venta por etapas y separación del deterioro/gravamen siguen pendientes en [la arquitectura](docs/architecture.md). Antes de implementar contratos corresponde cerrar la especificación de §17. No se agregan contratos vacíos, clientes manuales ni datos simulados presentados como confirmados.
+La especificación 0.2.0 y ADR-007 a ADR-010 cierran la separación físico/gravamen, la autorización conjunta y las condiciones de los préstamos. La venta con deuda queda fuera de la primera demo.
+
+## Contratos y Testnet
+
+Herramientas fijadas: Rust **1.92.0**, `soroban-sdk` **29.0.1**, Stellar CLI **28.1.0**. Instalá Rust mediante [rustup](https://rustup.rs/) y Stellar CLI desde su [release oficial](https://github.com/stellar/stellar-cli/releases/tag/v28.1.0). `rust-toolchain.toml` instala el target `wasm32v1-none`, rustfmt y Clippy. No uses Rust 1.91.0: la CLI rechaza esa versión del compilador.
+
+```sh
+bash scripts/check-contracts.sh
+```
+
+El orden importa: primero se compila `registry`, luego se comprueba y prueba el workspace, y finalmente se compila `vault`. Su interfaz Rust del registro se importa desde el Wasm generado, sin mantener una copia manual. Los artefactos quedan en `target/wasm32v1-none/release/`. Hay 34 pruebas con firmas ausentes, roles, co-firmas, masa, valuación, redondeo, balances reales del SAC de pruebas, rollback de transferencias fallidas y default sin doble cobro. Las pruebas nativas ejecutan el Wasm real de registry desde vault; no son transacciones de Testnet.
+
+Con el árbol confirmado en Git y los artefactos compilados:
+
+```sh
+bash scripts/deploy.sh
+```
+
+El despliegue solo acepta el RPC oficial de Testnet. Genera identidades sintéticas mediante Stellar CLI en `.stellar/` (privado e ignorado), emite un USDC propio de prueba, despliega ambos contratos, comprueba sus referencias y agrega a `docs/evidence.md` las transacciones confirmadas por RPC. No es USDC de Circle. Conserva un manifiesto por par de hashes Wasm para reanudar la misma ejecución; si Testnet se resetea, retirá el manifiesto local de esa ejecución y volvé a crear/fondear las identidades de demo. Nunca publiques las identidades ni las importes como billeteras reales.
 
 ## Ejecutar desde cero
 
@@ -87,7 +105,7 @@ PLAYWRIGHT_CHROME_CHANNEL=chrome pnpm test:e2e
 
 Playwright inicia y cierra sus propios procesos. Prueba carga, descarga exacta, validación, recuperación de un error de carga simulado, acceso por teclado y ausencia de desbordamiento horizontal en móvil/escritorio. El camino exitoso usa el servicio y almacenamiento reales locales; estas pruebas no validan contratos, Freighter ni Testnet. Las capturas y trazas se guardan en `app/test-results/`, fuera de Git.
 
-GitHub Actions ejecuta instalación reproducible, tipos, lint, pruebas, compilación y navegador. Su ejecución remota queda pendiente del próximo push.
+GitHub Actions ejecuta instalación reproducible, tipos, lint, pruebas, compilación y navegador. Las primeras ejecuciones remotas del incremento off-chain pasaron; el nuevo job de contratos se verificará en el próximo push.
 
 ## CLI de evidencia
 
@@ -114,10 +132,10 @@ Coincidencia: código 0. Diferencia, entrada inválida o error de lectura: códi
 - `scripts/setup-local.mjs`: preparación privada de configuración local.
 - `scripts/run-app.mjs`: carga del entorno compartido y arranque de Next.js.
 - `docs/architecture.md`: arquitectura objetivo; no sustituye la especificación de implementación.
-- `docs/contract-spec.md`: baseline preliminar que el Contract Engineer debe conciliar antes del código financiero.
+- `docs/contract-spec.md`: especificación 0.2.0 del ABI y reglas financieras implementadas.
 - `docs/handoff.md`: tareas por persona, verificaciones y próximos responsables.
 
-Los futuros directorios `contracts/registry` y `contracts/vault` pertenecerán a Contract Engineer. `packages/*-client` se creará exclusivamente por generación desde contratos; no existe una interfaz escrita a mano que la app pueda confundir con la real. Las operaciones futuras deberán usar esa integración compartida, con permisos y cálculos autoritativos en contratos.
+`contracts/registry` y `contracts/vault` pertenecen a Contract Engineer. `packages/*-client` se creará exclusivamente por generación desde contratos; no existe una interfaz escrita a mano que la app pueda confundir con la real. Las operaciones futuras deberán usar esa integración compartida, con permisos y cálculos autoritativos en contratos.
 
 ## Límites del prototipo
 

@@ -2073,6 +2073,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "yerbacapital-vault"
+version = "0.2.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
