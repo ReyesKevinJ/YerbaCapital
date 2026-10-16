@@ -30,3 +30,27 @@ La UI continúa local y Testnet. La integración no cambia ABI ni necesita despl
 - Evidence: capturas desktop/mobile en app/test-results (ignoradas), consultas reales a contratos; sin firma humana nueva
 - Next owner: App Engineer — aceptación visual y firma real de Freighter; Oracle Engineer — catálogo completo si el equipo lo prioriza
 - Open questions: ninguna para usar el dashboard local; alojamiento privado y aceptación humana siguen pendientes
+
+## Vistas por rol
+
+El selector «Vista por rol» organiza tareas y navegación para borrower, lender, custodian,
+verifier, price_oracle, admin y observer. Es un selector de contexto de demo, no un inicio
+de sesión ni una comprobación de roles. Los lotes y préstamos siguen siendo una selección
+pública por identificador, sin atribuirlos a la cuenta conectada. La autoridad permanece
+en el contrato, mediante simulación y firmas explícitas de Freighter.
+
+Observer no presenta operaciones ni carga de evidencia. Admin presenta únicamente el
+otorgamiento de roles que ya soporta la app; no se agregan operaciones contractuales.
+Custodian accede a los flujos conjuntos existentes, donde se requiere la firma del otro
+actor. No se modifica quién firma finalmente la transacción ni la recolección de cofirmas.
+No se permite cambiar de vista durante una operación preparada, en ejecución o pendiente;
+una preparación sin envío se puede descartar. Descartarla no revoca allowances anteriores.
+
+### Handoff
+- Persona: App Engineer
+- Changed: app/src/features/dashboard, app/src/components/protocol-workbench.tsx, app/e2e
+- ABI change: no
+- Tests: 13 unitarios, 16 pruebas de navegador y 4 lecturas/vistas de Testnet aprobados; typecheck y lint aprobados
+- Evidence: capturas de roles en escritorio y móvil generadas por Playwright
+- Next owner: equipo — aceptación humana por rol con Freighter en Testnet
+- Open questions: ninguna para estas vistas; detección automática de roles no incluida

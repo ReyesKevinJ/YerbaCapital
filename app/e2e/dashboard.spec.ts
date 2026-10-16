@@ -14,7 +14,7 @@ test("imported dashboard navigates, preserves off-chain evidence and does not in
   await expect(page.getByText("Cooperativa Monte Verde", { exact: true })).toHaveCount(0);
   await expect(page.getByText("US$ 18.000", { exact: true })).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath("dashboard-overview.png"), fullPage: true });
-  for (const section of ["Lotes", "Financiamiento", "Verificaciones", "Actividad", "Integraciones", "Operaciones"]) {
+  for (const section of ["Lotes", "Financiamiento", "Actividad", "Integraciones", "Operaciones"]) {
     await page.getByRole("navigation").getByRole("button", { name: section, exact: true }).click();
     await expect(page.getByRole("heading", { level: 1, name: section, exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

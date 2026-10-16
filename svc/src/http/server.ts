@@ -4,6 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { ServiceConfig } from "../config/environment.js";
 import { EvidenceIntegrityError, EvidenceStore } from "../storage/evidence-store.js";
+import { catalogPage } from "../indexer/catalog.js";
 import { readHistory } from "../indexer/store.js";
 
 class RequestError extends Error {
@@ -57,6 +58,13 @@ export function createEvidenceServer(config: ServiceConfig) {
     if (!timingSafeEqual(tokenDigest, provided)) {
       response.setHeader("WWW-Authenticate", "Bearer");
       throw new RequestError(401, "Evidence access requires authorization.");
+    }
+    if (request.method === "GET" && url.pathname === "/catalog") {
+      const offset = url.searchParams.get("offset") ?? "0";
+      if (!/^\d{1,7}$/.test(offset) || Number(offset) > 1_000_000) throw new RequestError(400, "Invalid catalog offset.");
+      const history = config.historyPath ? await readHistory(config.historyPath) : undefined;
+      if (!history) throw new RequestError(503, "Indexer is not initialized.");
+      json(response, 200, catalogPage(history, Number(offset))); return;
     }
     const historyMatch = /^\/lots\/([1-9]\d*)\/history$/.exec(url.pathname);
     if (request.method === "GET" && historyMatch) {

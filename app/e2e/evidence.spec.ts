@@ -10,7 +10,7 @@ test("synthetic evidence round trip works through the app, API and storage", asy
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Ir al contenido" })).toBeFocused();
   await page.keyboard.press("Enter");
-  const submit = page.getByRole("button", { name: "Guardar y calcular hash" });
+  const submit = page.getByRole("button", { name: "Guardar comprobante" });
   await submit.click();
   await expect(page.getByRole("region", { name: "Guardá un archivo de prueba" }).getByRole("alert")).toContainText("Seleccioná un archivo sintético");
   await expect(page.getByLabel("Archivo sintético")).toBeFocused();
@@ -21,7 +21,7 @@ test("synthetic evidence round trip works through the app, API and storage", asy
   await expect(page.getByText("No está firmada ni registrada en blockchain.")).toBeVisible();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page.getByRole("link", { name: "Descargar los bytes originales" }).click(),
+    page.getByRole("link", { name: "Descargar archivo original" }).click(),
   ]);
   const stream = await download.createReadStream();
   if (!stream) throw new Error("No download stream was created.");
@@ -40,11 +40,11 @@ test("a failed upload keeps the selected file and allows recovery", async ({ pag
   await page.goto("/");
   await page.route("**/api/evidence", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Servicio no disponible. Volvé a intentar." }) }));
   await page.getByLabel("Archivo sintético").setInputFiles({ name: "synthetic.txt", mimeType: "text/plain", buffer: Buffer.from("abc") });
-  await page.getByRole("button", { name: "Guardar y calcular hash" }).click();
+  await page.getByRole("button", { name: "Guardar comprobante" }).click();
   await expect(page.getByRole("region", { name: "Guardá un archivo de prueba" }).getByRole("alert")).toContainText("Servicio no disponible");
-  await expect(page.getByRole("button", { name: "Guardar y calcular hash" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Guardar comprobante" })).toBeEnabled();
   expect(await page.getByLabel("Archivo sintético").evaluate((input: HTMLInputElement) => input.files?.[0]?.name)).toBe("synthetic.txt");
   await page.unroute("**/api/evidence");
-  await page.getByRole("button", { name: "Guardar y calcular hash" }).click();
+  await page.getByRole("button", { name: "Guardar comprobante" }).click();
   await expect(page.getByLabel("SHA-256")).toHaveValue(ABC_SHA256);
 });

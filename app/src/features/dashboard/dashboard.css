@@ -62,3 +62,69 @@
 }
 .yc-tablehint { display: none; }
 @media (max-width: 720px) { .yc-tablehint { display: block; color: var(--yc-muted); font-size: 10px; margin-bottom: 0; } }
+.yc-role-picker { padding: 8px 12px 18px; display: grid; gap: 8px; }
+.yc-role-picker label { font-weight: 600; font-size: 13px; }
+.yc-role-picker select { width: 100%; min-width: 0; padding: 10px 6px; border: 1px solid #d7e1db; border-radius: 8px; background: white; color: #214d36; font: inherit; font-size: 12px; }
+.yc-role-picker small { color: #56665d; line-height: 1.5; }
+.yc-role-summary { margin: 20px 0; }
+.yc-role-summary p { line-height: 1.6; }
+.yc-role-summary .yc-actions { flex-wrap: wrap; }
+@media(max-width:720px) { .yc-role-picker { padding: 10px 0; } .yc-role-picker select { font-size: 14px; } }
+
+/* Dark palette keeps the dashboard's green hierarchy and separate status colors. */
+:root[data-theme="dark"] .yc-shell {
+  --yc-bg: #101a15; --yc-ink: #e5eee7; --yc-muted: #b5c7b9;
+  --yc-line: #3b5043; --yc-green: #9addb0;
+}
+:root[data-theme="dark"] :is(.yc-sidebar, .yc-card) { background: #19271f; }
+:root[data-theme="dark"] .yc-brand > span:last-child > span { color: #9addb0; }
+:root[data-theme="dark"] .yc-brandmark { background: #2b7049; color: #fff; }
+:root[data-theme="dark"] .yc-shell .yc-navitem:is(.active, :hover) { color: #b7efc9; background: #244332; }
+:root[data-theme="dark"] .yc-shell .yc-btn.primary { background: #9addb0; color: #10291a; }
+:root[data-theme="dark"] .yc-shell .yc-btn.primary:hover { background: #b6edc7; }
+:root[data-theme="dark"] .yc-shell .yc-btn.secondary { background: #22352a; color: #e5eee7; }
+:root[data-theme="dark"] .yc-principle { background: #1c3425; border-color: #3d6249; color: #c3e4cd; }
+:root[data-theme="dark"] :is(.yc-staticon, .yc-producticon) { background: #244332; color: #b7efc9; }
+:root[data-theme="dark"] .yc-pill.green { background: #254732; color: #b8efc9; }
+:root[data-theme="dark"] .yc-pill.amber { background: #49381d; color: #ffdfa1; }
+:root[data-theme="dark"] .yc-pill.blue { background: #253b5d; color: #c1d9ff; }
+:root[data-theme="dark"] .yc-pill.gray { background: #334139; color: #d0dbd3; }
+:root[data-theme="dark"] .yc-notice { background: #332c1c; border-color: #756039; color: #f4dba7; }
+:root[data-theme="dark"] :is(.yc-shell td, .yc-event) { border-bottom-color: var(--yc-line); }
+:root[data-theme="dark"] .yc-role-picker select { border-color: var(--yc-line); background: #19271f; color: var(--yc-ink); }
+:root[data-theme="dark"] .yc-role-picker small { color: var(--yc-muted); }
+@media print {
+  :root[data-theme="dark"] .yc-shell { --yc-bg: #ffffff; --yc-ink: #17251d; --yc-muted: #5d6c62; --yc-line: #e2e8e2; --yc-green: #236b48; }
+  :root[data-theme="dark"] .yc-shell :is(.yc-card, .yc-sidebar, .yc-principle, .yc-notice, .yc-pill, .yc-staticon, .yc-producticon) { background: white; color: #17251d; }
+}
+
+/* Readable in the field: visible destinations, generous targets and clear help. */
+@media screen {
+  .yc-shell { font-size: 16px; }
+  .yc-shell .yc-navitem, .yc-shell .yc-btn { min-height: 44px; font-size: 15px; }
+  .yc-shell .yc-btn svg, .yc-shell .yc-navitem svg { flex-shrink: 0; }
+  .yc-sub, .yc-principle, .yc-notice, .yc-empty, .yc-query label,
+  .yc-stathead, .yc-role-picker label, .yc-role-picker small,
+  .yc-workbench label, .yc-workbench legend, .yc-workbench .muted,
+  .yc-workbench p, .yc-workbench dd { font-size: 15px; }
+  .yc-statfoot, .yc-pill, .yc-shell caption, .yc-shell td small,
+  .yc-lotmeta dt, .yc-sidebarfoot p, .yc-footer, .yc-tablehint { font-size: 13px; }
+  .yc-shell th { font-size: 12px; letter-spacing: .3px; }
+  .yc-shell td, .yc-event strong, .yc-event p, .yc-event a,
+  .yc-lotmeta dd, .yc-workbench button, .yc-role-picker select,
+  .yc-workbench input, .yc-workbench select, .yc-workbench textarea,
+  .yc-query input { font-size: 15px; }
+  .yc-event a { min-height: 44px; }
+}
+@media screen and (max-width: 720px) {
+  .yc-navgroup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; gap: 6px; }
+  .yc-shell .yc-navitem { width: 100%; white-space: normal; line-height: 1.4; padding: 10px; }
+  .yc-shell input, .yc-shell select, .yc-shell textarea, .yc-role-picker select,
+  .yc-workbench input, .yc-workbench select, .yc-workbench textarea,
+  .yc-query input { font-size: 16px; }
+  .yc-shell .yc-btn { white-space: normal; }
+  .yc-toolbar { flex-wrap: wrap; }
+}
+.loan-terms { max-width: 360px; white-space: normal; }
+.loan-terms > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
+.loan-terms dd { overflow-wrap: anywhere; }

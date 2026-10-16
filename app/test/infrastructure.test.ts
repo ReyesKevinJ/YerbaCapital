@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { StrKey } from "@stellar/stellar-sdk";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +10,7 @@ import { loadNetworkConfig, TESTNET_PASSPHRASE } from "../src/lib/stellar/networ
 import { evidenceServiceConfig, localAppOrigin } from "../src/lib/evidence/service";
 import { POST } from "../src/app/api/evidence/route";
 import { GET as downloadEvidence } from "../src/app/api/evidence/[sha256]/route";
+import { GET as catalogStatus } from "../src/app/api/catalog/route";
 import { GET as systemStatus } from "../src/app/api/system/route";
 import { createEvidenceServer } from "../../svc/src/http/server.js";
 
@@ -49,10 +50,12 @@ test("service transport restricts evidence requests to the local service", () =>
 
 test("app gateway persists and downloads exact bytes through the real evidence service", async () => {
   const directory = await mkdtemp(join(tmpdir(), "yerba-app-"));
+  const historyPath = join(directory, "history.json");
+  await writeFile(historyPath, JSON.stringify({ network: "testnet", contracts: ["registry", "vault"], fromLedger: 10, nextLedger: 20, events: [{ id: "synthetic", contractId: "registry", name: "LotRegistered", lotId: "7", loanId: "2", ledger: 10, closedAt: "synthetic", txHash: "synthetic", data: {} }] }));
   const server = createEvidenceServer({
     networkPassphrase: TESTNET_PASSPHRASE,
     rpcUrl: "https://soroban-testnet.stellar.org",
-    port: 3001, storageDirectory: directory, accessToken: TOKEN, maxEvidenceBytes: 5 * 1024 * 1024,
+    port: 3001, historyPath, storageDirectory: directory, accessToken: TOKEN, maxEvidenceBytes: 5 * 1024 * 1024,
   });
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -81,6 +84,13 @@ test("app gateway persists and downloads exact bytes through the real evidence s
     const downloaded = await downloadEvidence(new Request("http://127.0.0.1"), { params: Promise.resolve({ sha256: ABC_SHA256 }) });
     assert.equal(downloaded.status, 200);
     assert.equal(await downloaded.text(), "abc");
+    const unauthorized = await fetch(`http://127.0.0.1:${address.port}/catalog?offset=0`);
+    assert.equal(unauthorized.status, 401);
+    const catalog = await catalogStatus(new Request("http://127.0.0.1:3000/api/catalog?offset=0"));
+    assert.equal(catalog.status, 200);
+    const catalogText = await catalog.text(); assert.ok(!catalogText.includes(TOKEN));
+    assert.deepEqual(JSON.parse(catalogText).lotIds, ["7"]);
+    assert.equal((await catalogStatus(new Request("http://127.0.0.1:3000/api/catalog?offset=-1"))).status, 400);
     const ready = await systemStatus();
     assert.equal(ready.status, 200);
     const status = await ready.text();
