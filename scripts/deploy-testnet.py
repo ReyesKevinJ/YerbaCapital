@@ -19,8 +19,10 @@ if os.environ.get("STELLAR_RPC_URL", RPC) != RPC:
 if subprocess.check_output(["git", "status", "--porcelain"]).strip():
     sys.exit("Commit the working tree before deploying (AGENTS.md section 5.8)")
 
-CONFIG = ROOT / ".stellar"
-CONFIG.mkdir(mode=0o700, exist_ok=True)
+STATE = ROOT / ".stellar"
+CONFIG = STATE / "stellar"
+CLI_ENV = {**os.environ, "XDG_CONFIG_HOME": str(STATE)}
+CONFIG.mkdir(mode=0o700, parents=True, exist_ok=True)
 os.chmod(CONFIG, 0o700)
 artifacts = {
     name: ROOT / f"target/wasm32v1-none/release/yerbacapital_{name}.wasm"
@@ -28,7 +30,7 @@ artifacts = {
 }
 digests = {name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in artifacts.items()}
 run_id = hashlib.sha256(json.dumps(digests, sort_keys=True).encode()).hexdigest()[:16]
-manifest = CONFIG / f"deployment-{run_id}.json"
+manifest = STATE / f"deployment-{run_id}.json"
 state = json.loads(manifest.read_text()) if manifest.exists() else {
     "network": NETWORK, "rpc": RPC, "run": run_id, "wasm": digests,
     "commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
@@ -56,7 +58,7 @@ def rpc(method, params):
 
 def cli(args, label=None):
     proc = subprocess.run(["stellar", "--config-dir", str(CONFIG), *args],
-                          text=True, capture_output=True)
+                          text=True, capture_output=True, env=CLI_ENV)
     if proc.returncode:
         # Never echo arbitrary stdout from key-management commands.
         error = re.sub(r"S[A-Z2-7]{55}", "[redacted]", proc.stderr)
@@ -112,11 +114,11 @@ for name, identifier in state["contracts"].items():
     print(f"{name}: {identifier}", flush=True)
 # Read-only verification of immutable wiring before any role or lot is created.
 vault_config = json.loads(cli(["contract", "invoke", "--id", state["contracts"]["vault"],
-                              "--source-account", "admin", *net, "--", "get_config"]))
+                              "--source-account", "admin", "--send=no", *net, "--", "get_config"]))
 assert vault_config["registry"] == state["contracts"]["registry"]
 assert vault_config["settlement_asset"] == state["contracts"]["usdc"]
 bound = json.loads(cli(["contract", "invoke", "--id", state["contracts"]["registry"],
-                       "--source-account", "admin", *net, "--", "get_vault"]))
+                       "--source-account", "admin", "--send=no", *net, "--", "get_vault"]))
 assert bound == state["contracts"]["vault"]
 
 evidence = ROOT / "docs/evidence.md"

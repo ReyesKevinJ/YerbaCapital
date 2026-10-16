@@ -61,6 +61,7 @@ impl Fixture {
         }
         token::StellarAssetClient::new(&env, &asset).mint(&lender, &(100_000 * UNIT));
         token::StellarAssetClient::new(&env, &asset).mint(&borrower, &(10_000 * UNIT));
+        token::Client::new(&env, &asset).approve(&borrower, &vault, &(100_000 * UNIT), &10_000);
         Self {
             env,
             admin,
@@ -120,6 +121,51 @@ impl Fixture {
         self.registry()
             .post_valuation(&self.oracle, &lot, &(12_000 * UNIT), &self.hash());
     }
+}
+
+#[test]
+fn full_repayment_keeps_exact_payer_authorization_valid_after_ledger_time_advances() {
+    use soroban_sdk::{
+        testutils::{MockAuth, MockAuthInvoke},
+        IntoVal,
+    };
+    let f = Fixture::new();
+    let (_, loan) = f.funded();
+    let cap = 5_001 * UNIT;
+    // The payer signs fixed root args; no SAC child with a simulation-time debt amount.
+    let args: soroban_sdk::Vec<soroban_sdk::Val> = (&f.borrower, loan, cap).into_val(&f.env);
+    f.env.mock_auths(&[MockAuth {
+        address: &f.borrower,
+        invoke: &MockAuthInvoke {
+            contract: &f.vault,
+            fn_name: "repay",
+            args,
+            sub_invokes: &[],
+        },
+    }]);
+    f.time(START + 10);
+    assert_eq!(
+        f.client().repay(&f.borrower, &loan, &cap),
+        PRINCIPAL + 1_903
+    );
+    assert_eq!(f.client().debt_of(&loan), 0);
+    assert_eq!(f.balance(&f.lender), 100_000 * UNIT + 1_903);
+    assert_eq!(f.balance(&f.vault), 0);
+}
+
+#[test]
+fn repayment_without_allowance_reverts_without_spending_or_releasing() {
+    let f = Fixture::new();
+    let (id, loan) = f.funded();
+    token::Client::new(&f.env, &f.asset).approve(&f.borrower, &f.vault, &0, &0);
+    assert!(f
+        .client()
+        .try_repay(&f.borrower, &loan, &PRINCIPAL)
+        .is_err());
+    assert_eq!(f.client().debt_of(&loan), PRINCIPAL);
+    assert_eq!(f.registry().get_lot(&id).loan_id, Some(loan));
+    assert_eq!(f.balance(&f.borrower), 15_000 * UNIT);
+    assert_eq!(f.balance(&f.vault), 0);
 }
 
 #[test]

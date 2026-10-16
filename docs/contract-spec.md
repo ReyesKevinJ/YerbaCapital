@@ -1,6 +1,6 @@
 # Especificación de contratos — YerbaCapital
 
-Versión de diseño: **0.2.0**. Estado: especificación acordada para implementación, todavía sin despliegue. La autoridad del diseño está en esta sección y su espejo en AGENTS.md §7. Una implementación, unos clientes o una demo no se consideran disponibles por estar especificados acá.
+Versión de diseño: **0.3.0**. Estado: especificación acordada para implementación, todavía sin despliegue. La autoridad del diseño está en esta sección y su espejo en AGENTS.md §7. Una implementación, unos clientes o una demo no se consideran disponibles por estar especificados acá.
 
 ## 7. Smart contract specification
 
@@ -12,6 +12,7 @@ Dos contratos Soroban: `registry` mantiene roles, lotes, evidencia y certificado
 - ADR-008 excluye la venta con deuda de la primera demo. `SaleConfirmed` queda reservado; no se publica una operación de venta o liquidación comercial en esta versión.
 - ADR-009 define autorización conjunta en una única operación y usa `vault` como coordinador del retiro gravado, evitando ciclos de llamadas.
 - ADR-010 define política de préstamo inmutable, redondeo y repagos posteriores al default pero anteriores al reclamo.
+- ADR-011 requiere allowance SAC acotada y revocable antes del repago; resuelve el cambio de interés entre simulación y ejecución sin escrow.
 
 El ABI objetivo de esta versión se enumera abajo. Toda función mutante autentica a cada actor antes de ejercer su capacidad; las lecturas públicas no requieren autorización. La ausencia de auth es un fallo del host, distinto de un error de negocio.
 
@@ -87,14 +88,14 @@ No existen `confirm_sale`, rehabilitación, retiro de lote deteriorado, cambio d
 | `request_loan(borrower, lot_id, principal, rate_bps, duration_secs)` | owner que será borrower | No pausado; lote elegible con valuación vigente; principal positivo dentro de capacidad; tasa/plazo válidos; sin otro préstamo vinculado. Snapshot de política; `registry.lock`; `Requested`; `LoanRequested`. |
 | `cancel_request(borrower, loan_id)` | borrower del préstamo | Solo `Requested`; desbloquea certificado incluso si el lote se deterioró; `Cancelled`; `LoanCancelled`. |
 | `fund(lender, loan_id)` | lender | Solo `Requested`, no pausado; lender distinto de borrower; reconsulta lote, separación y valuación vigente con política del préstamo. Transfiere SAC lender → borrower, una sola vez; fija fondeo y vencimiento; `Funded`; `LoanFunded`. |
-| `repay(payer, loan_id, amount)` | dueño de los fondos payer | `Funded`, `PartiallyRepaid` o `Defaulted`, nunca `Liquidated`; cantidad positiva. Devenga y transfiere solo mínimo entre amount y deuda vigente payer → lender. Interés primero, capital después. Parcial conserva `Defaulted` si ya estaba así; en otro caso `PartiallyRepaid`. Total: `Repaid` + unlock, incluso si físico sigue `Impaired`; `LoanRepaid`. |
+| `repay(payer, loan_id, amount)` | dueño de los fondos payer | `Funded`, `PartiallyRepaid` o `Defaulted`, nunca `Liquidated`; cantidad positiva. Requiere allowance SAC previa al vault, con monto acotado y vencimiento explícito. Devenga y transfiere con transfer_from solo mínimo entre amount y deuda vigente payer → lender; payer autentica siempre la operación raíz. Interés primero, capital después. Parcial conserva `Defaulted` si ya estaba así; en otro caso `PartiallyRepaid`. Total: `Repaid` + unlock, incluso si físico sigue `Impaired`; `LoanRepaid`. |
 | `mark_default(caller, loan_id)` | caller, sin rol privilegiado | Solo deuda fondeada positiva en `Funded`/`PartiallyRepaid`, y tiempo estrictamente posterior a vencimiento + gracia del préstamo, o lote `Impaired`. Devenga a fecha de declaración; `Defaulted`; `LoanDefaulted`. No transfiere colateral. |
 | `claim_collateral(lender, loan_id)` | lender del préstamo | Solo `Defaulted` con deuda positiva. Devenga a fecha de reclamo, congela exposición y ordena transferencia del certificado; `Liquidated`; `CollateralClaimed`. No realiza pago de dinero. |
 | `partial_withdraw(owner, loan_id, kg, evidence)` | owner + custodio | Préstamo `Funded`/`PartiallyRepaid`, físico `Verified`, valuación vigente y remanente mínimo. Decide D ≤ capacidad restante usando snapshot del préstamo, luego invoca retiro gravado del registro. No hay aprobación financiera reutilizable fuera de esta operación. |
 | `set_params(admin, params)` | admin | Cambia política para solicitudes futuras dentro de límites; no reescribe las condiciones de préstamos existentes. `ParamsUpdated`. |
 | `set_paused(admin, paused)` | admin | Pausa únicamente nuevas solicitudes y fondeos. No bloquea repagos, cancelación, default, reclamo, evidencia o consulta. `ParamsUpdated`, política pause. |
 
-Si el activo rechaza la transferencia, toda la operación financiera se revierte, incluidos estado, gravamen y eventos de éxito. El vault no conserva saldos de usuario en el ciclo normal; no hay método administrativo de retiro o rescate de tokens.
+Si el activo rechaza la transferencia, toda la operación financiera se revierte, incluidos estado, gravamen y eventos de éxito. La autorización de gasto se firma en el SAC configurado antes del repago; puede revocarse con aprobación cero. La demo propone una vigencia de 100 ledgers, no una aprobación ilimitada. El remanente de autorización no es un depósito y no permite al vault gastar sin un repago autenticado. El vault no conserva saldos de usuario en el ciclo normal; no hay método administrativo de retiro o rescate de tokens.
 
 `debt_of`: cero para `Requested`, `Cancelled`, `Repaid`; deuda actual en estados activos/default; exposición congelada en `Liquidated`, identificada como contabilidad del reclamo, no como un saldo que se pueda pagar otra vez por el protocolo. No hay segundo reclamo ni repago posterior a adjudicar. Cualquier deuda o recupero jurídico residual queda fuera del protocolo de demo.
 
@@ -223,7 +224,7 @@ Co-firmas de usuario: una transacción Soroban con entradas de autorización par
 
 - Persona: Architect
 - Changed: docs/contract-spec.md, AGENTS.md §7, docs/architecture.md y ADR-007 a ADR-010
-- ABI change: diseño 0.2.0 previo a la primera implementación; tipos/operaciones de esta sección sustituyen el borrador, sin contrato desplegado que migrar
+- ABI change: diseño 0.3.0 previo a la primera implementación; tipos/operaciones de esta sección sustituyen el borrador, sin contrato desplegado que migrar
 - Tests: revisión de permisos, transiciones, redondeo y correspondencia entre contratos; ninguna prueba de contrato ejecutada por la mera especificación
 - Evidence: no transacciones on-chain generadas por este documento
 - Next owner: Contract Engineer — implementar registry y vault por separado, con la matriz §7.14

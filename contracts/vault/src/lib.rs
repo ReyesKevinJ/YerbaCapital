@@ -226,6 +226,7 @@ impl Vault {
     }
 
     /// Repay with payer auth until claim, interest first; cap transfer at actual debt.
+    /// Requires a prior bounded SAC allowance for this vault as spender (ADR-011).
     /// Emits LoanRepaid and CollateralUnlocked on full payment. Errors: AmountInvalid,
     /// InvalidLoanStatus, InvalidAddress, MathOverflow; SAC failures roll back all effects.
     pub fn repay(env: Env, payer: Address, loan_id: u64, amount: i128) -> Result<i128, Error> {
@@ -270,7 +271,12 @@ impl Vault {
         }
         let config = storage::config(&env);
         storage::put(&env, &value);
-        token::Client::new(&env, &config.settlement_asset).transfer(&payer, &lender, &transferred);
+        token::Client::new(&env, &config.settlement_asset).transfer_from(
+            &env.current_contract_address(),
+            &payer,
+            &lender,
+            &transferred,
+        );
         if repaid {
             RegistryClient::new(&env, &config.registry).unlock(&value.lot_id, &loan_id);
         }
@@ -463,9 +469,9 @@ impl Vault {
             env.ledger().timestamp(),
         )
     }
-    /// Public design revision 0.2; no auth or events.
+    /// Public vault revision 0.3 (bounded repayment allowance); no auth or events.
     pub fn version() -> u32 {
-        2
+        3
     }
 }
 
