@@ -6,7 +6,6 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-import urllib.request
 
 ROOT = Path(__file__).resolve().parent.parent
 os.chdir(ROOT)
@@ -42,11 +41,14 @@ def save():
 
 
 def rpc(method, params):
-    request = urllib.request.Request(RPC, json.dumps({
-        "jsonrpc": "2.0", "id": 1, "method": method, "params": params,
-    }).encode(), {"Content-Type": "application/json"})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        result = json.load(response)
+    # curl uses the platform TLS/proxy configuration, including on macOS.
+    response = subprocess.run(
+        ["curl", "--fail-with-body", "--silent", "--show-error", "--max-time", "30",
+         "-H", "Content-Type: application/json", "--data-binary", "@-", RPC],
+        input=json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}),
+        text=True, capture_output=True, check=True,
+    )
+    result = json.loads(response.stdout)
     if "error" in result:
         raise RuntimeError(result["error"])
     return result["result"]
