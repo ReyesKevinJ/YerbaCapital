@@ -73,7 +73,7 @@ function eventEvidence(data: unknown): string | undefined {
 
 export type OperationRequest = { id: number; operation: Operation; values: Record<string, string> };
 
-export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfirmed, allowedOperations = allOperations, onLockChange, workspaceRole, evidenceSelection, referenceLots = [] }: { referenceLots?: Lot[]; evidenceSelection?: { id: number; sha256: string }; workspaceRole?: WorkspaceRole; allowedOperations?: Operation[]; onLockChange?: (locked: boolean) => void; request?: OperationRequest; view?: "all" | "trace"; selectedLot?: { id: number; lot: string }; onConfirmed?: () => void } = {}) {
+export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfirmed, allowedOperations = allOperations, onLockChange, workspaceRole, evidenceSelection, referenceLots = [] }: { referenceLots?: Lot[]; evidenceSelection?: { id: number; sha256: string }; workspaceRole?: WorkspaceRole; allowedOperations?: Operation[]; onLockChange?: (locked: boolean) => void; request?: OperationRequest; view?: "all" | "trace" | "operation"; selectedLot?: { id: number; lot: string }; onConfirmed?: () => void } = {}) {
   const [capacity, setCapacity] = useState<{ lot: string; amount: bigint }>();
   const [account, setAccount] = useState("");
   const [operation, setOperation] = useState<Operation>("register_lot");
@@ -177,20 +177,22 @@ export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfir
 
   return <>
     <section className="panel" aria-labelledby="protocol-heading" hidden={view === "trace" || allowedOperations.length === 0}>
-      <p className="eyebrow">02 / Operaciones reales en Testnet</p>
-      <h2 id="protocol-heading">Protocolo y firmas por rol</h2>
-      <ol aria-label="Pasos para confirmar una operación"><li>Completá los datos y pedí la revisión automática. Todavía no se envía nada.</li><li>Revisá el resumen. Si hace falta, el custodio agrega su firma.</li><li>Confirmá en Freighter, la billetera de prueba, y esperá el comprobante.</li></ol>
-      <p>Usá cuentas de prueba distintas para cooperativa, custodio y verificador. El contrato decide los permisos y los importes admisibles.</p>
+      <p className="eyebrow">{request ? "Paso 3 / Confirmación" : "02 / Operaciones reales en Testnet"}</p>
+      <h2 id="protocol-heading">{request ? "Revisá los datos antes de firmar" : "Protocolo y firmas por rol"}</h2>
+      {request ? <details className="signing-help"><summary>Cómo funciona la firma</summary><ol aria-label="Pasos para confirmar una operación"><li>Completá los datos y pedí la revisión automática. Todavía no se envía nada.</li><li>Revisá el resumen. Si hace falta, el custodio agrega su firma.</li><li>Confirmá en Freighter, la billetera de prueba, y esperá el comprobante.</li></ol><p>Usá cuentas de prueba distintas para cooperativa, custodio y verificador. El contrato decide los permisos y los importes admisibles.</p></details> : <><ol aria-label="Pasos para confirmar una operación"><li>Completá los datos y pedí la revisión automática. Todavía no se envía nada.</li><li>Revisá el resumen. Si hace falta, el custodio agrega su firma.</li><li>Confirmá en Freighter, la billetera de prueba, y esperá el comprobante.</li></ol><p>Usá cuentas de prueba distintas para cooperativa, custodio y verificador. El contrato decide los permisos y los importes admisibles.</p></>}
       <button disabled={busy} onClick={() => action(async () => { setAccount(await connectWallet()); invalidate(); })}>Conectar Freighter</button>
       {account && <p className="address">Cuenta conectada: <code>{account}</code></p>}
       {guide && <section className="task-guidance" aria-labelledby="task-guidance-heading"><h3 id="task-guidance-heading">{guide.title}</h3><p><strong>Antes de empezar:</strong> {guide.before}</p><p><strong>Si se confirma:</strong> {guide.result}</p>{workspaceRole === "custodian" && <p className="muted">Estás en la vista del depósito. Tu participación es la cofirma: la preparación se hace con la cuenta del inspector para un ingreso o del titular para un retiro. Cambiar de vista no cambia la cuenta de Freighter.</p>}<ContextHelp key={`${workspaceRole}-${operation}`} title={guide.helpTitle}><p>{guide.explanation}</p></ContextHelp></section>}
       <form onSubmit={prepare}>
         <fieldset disabled={busy || pending}>
           <legend>Acción del rol</legend>
-          <label htmlFor="operation">Operación</label>
-          <select id="operation" value={operation} onChange={e => { setOperation(e.target.value as Operation); invalidate(); }}>
-            {allowedOperations.map(value => <option key={value} value={value}>{tasks[value].label}</option>)}
-          </select>
+          {request ? <p className="prepared-task"><strong>Tarea preparada:</strong> {tasks[operation].label}. Para hacer otra tarea, volvé al resumen o elegí otra sección.</p> : <details className="operation-picker">
+            <summary>Tarea preparada: <strong>{tasks[operation].label}</strong></summary>
+            <label htmlFor="operation">Elegir otra tarea</label>
+            <select id="operation" value={operation} onChange={e => { setOperation(e.target.value as Operation); invalidate(); }}>
+              {allowedOperations.map(value => <option key={value} value={value}>{tasks[value].label}</option>)}
+            </select>
+          </details>}
           {operation === "register_lot" && referenceLots.length > 0 && <div className="field"><label htmlFor="demo-warehouse-reference">Usar la referencia de un depósito ya consultado (opcional)</label><select id="demo-warehouse-reference" value="" onChange={event => {
             const lot = referenceLots.find(item => item.id.toString() === event.target.value); if (!lot) return;
             setValues(current => ({ ...current, custodian: lot.custodian, warehouse: Array.from(lot.warehouse_id).map(byte => byte.toString(16).padStart(2, "0")).join("") })); invalidate();
@@ -259,7 +261,7 @@ export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfir
       {allowedOperations.includes("repay") && <><ContextHelp title="¿Cómo funcionan el permiso de pago y su vencimiento?"><p>El permiso y el pago son dos firmas distintas. El permiso pone un máximo y vence en un número de bloque de la red. Usá el botón para completar ese vencimiento; no hace falta calcular bloques. Si no continuás con el pago, podés quitar el permiso desde las tareas.</p></ContextHelp>
       <p className="muted">Antes de repagar, autorizá un monto máximo de USDC con vencimiento. Después firmá el repago: solo se cobra hasta la deuda vigente. Si cancelás ese segundo paso, la autorización permanece hasta su vencimiento o revocación; podés revocarla desde el selector de operaciones.</p></>}
     </section>
-    <section className="panel" aria-labelledby="trace-heading">
+    {view !== "operation" && <section className="panel" aria-labelledby="trace-heading">
       <p className="eyebrow">03 / Consulta pública sin billetera</p>
       <h2 id="trace-heading">Estado e historial del lote</h2>
       <p className="muted">Un incumplimiento o reclamo del certificado no recupera físicamente la yerba: requiere al custodio y un proceso legal.</p>
@@ -296,6 +298,6 @@ export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfir
       </form>
       <p role="status" aria-live="polite">{loanStatus}</p>
       {view === "trace" && error && <p role="alert" className="error">{error}</p>}
-    </section>
+    </section>}
   </>;
 }

@@ -128,3 +128,56 @@
 .loan-terms { max-width: 360px; white-space: normal; }
 .loan-terms > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; text-decoration: underline; text-underline-offset: .2em; }
 .loan-terms dd { overflow-wrap: anywhere; }
+
+/* First-visit hierarchy: start with one job, then reveal demo detail. */
+.yc-more-tools { margin: 8px 0 0; padding: 0 8px; }
+.yc-more-tools > summary, .role-guidance > summary { cursor: pointer; color: var(--yc-muted); font-size: 13px; font-weight: 650; min-height: 42px; display: flex; align-items: center; }
+.yc-more-tools > div { display: grid; gap: 3px; padding-top: 4px; }
+.yc-role-summary { max-width: 900px; margin: 18px 0 0; padding: 24px; }
+.yc-role-summary h2 { font-size: clamp(22px, 3vw, 30px); letter-spacing: -.8px; margin: 7px 0; }
+.yc-next-action { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 20px; padding: 17px; border: 1px solid color-mix(in srgb, var(--yc-green) 28%, var(--yc-line)); border-radius: 13px; background: color-mix(in srgb, #eef5ef 70%, white); }
+.yc-next-action > div { display: grid; gap: 3px; }
+.yc-next-action strong { font-size: 13px; }
+.yc-next-action span { color: var(--yc-muted); font-size: 13px; line-height: 1.45; }
+.role-guidance { margin-top: 14px; border-top: 1px solid var(--yc-line); }
+.role-guidance ol { display: grid; gap: 9px; padding-left: 22px; color: var(--yc-muted); font-size: 14px; }
+.yc-demo-glance { display: flex; align-items: center; justify-content: space-between; gap: 20px; max-width: 900px; margin: 18px 0; padding: 20px 2px 0; border-top: 1px solid var(--yc-line); }
+.yc-demo-glance h2 { font-size: 18px; margin: 5px 0; }
+:root[data-theme="dark"] .yc-next-action { background: #1c3425; border-color: #3d6249; }
+@media (max-width: 720px) {
+  .yc-role-summary { padding: 18px; }
+  .yc-next-action, .yc-demo-glance { align-items: stretch; flex-direction: column; }
+  .yc-next-action .yc-btn, .yc-demo-glance .yc-btn { width: 100%; }
+}
+.yc-workbench .operation-picker { margin: 0 0 16px; border: 1px solid var(--yc-line); border-radius: 10px; padding: 0 13px; }
+.yc-workbench .operation-picker summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 13px; }
+.yc-workbench .operation-picker label { display: block; margin: 8px 0 5px; }
+.yc-workbench .operation-picker select { width: 100%; margin: 0 0 13px; }
+.yc-task-focus { max-width: 900px; margin: 18px 0; padding: 23px; border: 1px solid color-mix(in srgb, var(--yc-green) 40%, var(--yc-line)); border-radius: 16px; background: color-mix(in srgb, #eef5ef 76%, white); }
+.yc-task-focus h2 { font-size: 24px; margin: 6px 0; }
+.yc-task-focus > p:not(.yc-eyebrow) { max-width:72ch; color:var(--yc-muted); margin:0; }
+.yc-task-focus > div { display:flex; flex-wrap:wrap; gap:8px; margin-top:17px; }
+.yc-task-focus span { border-radius:999px; padding:6px 10px; background:var(--yc-bg); color:var(--yc-ink); font-size:12px; font-weight:650; }
+:root[data-theme="dark"] .yc-task-focus { background:#1c3425; border-color:#3d6249; }
+
+.prepared-task {
+  margin: 0 0 1.1rem;
+  padding: 0.8rem 0.95rem;
+  border-left: 3px solid var(--green, #2e6b4a);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--green, #2e6b4a) 7%, transparent);
+}
+
+.signing-help {
+  margin: 0.75rem 0 1rem;
+}
+
+.signing-help summary {
+  cursor: pointer;
+  color: var(--muted, #5c655f);
+  font-weight: 650;
+}
+
+.signing-help ol {
+  margin: 0.85rem 0 0.65rem;
+}
