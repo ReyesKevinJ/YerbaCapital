@@ -176,3 +176,17 @@ if marker not in text:
     for entry in state["transactions"]:
         lines.append(f"- {entry['step']}: [{entry['hash']}](https://stellar.expert/explorer/testnet/tx/{entry['hash']}) (RPC SUCCESS).")
     evidence_doc.write_text(text + "\n".join(lines) + "\n")
+
+print("\n" + "=" * 78)
+print("🌾 YERBACAPITAL — SYNTHETIC DEMO FLOW ON STELLAR TESTNET")
+print("=" * 78)
+print(f"Deployment Run: {deployment['run']}")
+print(f"  • Registry: CBS7LFX... -> https://stellar.expert/explorer/testnet/contract/{contracts['registry']}")
+print(f"  • Vault:    CAUF5CY... -> https://stellar.expert/explorer/testnet/contract/{contracts['vault']}")
+print(f"  • USDC SAC: CCY7HWQ... -> https://stellar.expert/explorer/testnet/contract/{contracts['usdc']}")
+print("-" * 78)
+print("CONFIRMED DEMO TRANSACTIONS (STELLAR EXPERT TESTNET):")
+for entry in state["transactions"]:
+    print(f"  • {entry['step']:<36}: https://stellar.expert/explorer/testnet/tx/{entry['hash']}")
+print("=" * 78 + "\n")
+

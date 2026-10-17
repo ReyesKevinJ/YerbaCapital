@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { hashEvidence, verifyEvidence } from "../src/evidence.js";
 
 const ABC_SHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
@@ -27,8 +28,8 @@ test("evidence integrity: known vector, altered bytes, invalid hash and missing 
 test("CLI reports success, mismatch, usage and read failures via exit status", async () => {
   const directory = await mkdtemp(join(tmpdir(), "yerbacapital-cli-"));
   const path = join(directory, "synthetic.txt");
-  const cli = new URL("../src/cli.js", import.meta.url);
-  const run = (...args: string[]) => spawnSync(process.execPath, [cli.pathname, ...args], { encoding: "utf8" });
+  const cli = fileURLToPath(new URL("../src/cli.js", import.meta.url));
+  const run = (...args: string[]) => spawnSync(process.execPath, [cli, ...args], { encoding: "utf8" });
   try {
     await writeFile(path, "abc");
     const hashed = run("hash", path);

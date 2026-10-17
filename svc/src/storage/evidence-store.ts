@@ -1,8 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import { link, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { computeIpfsCidV0 } from "./ipfs.js";
 
-export type EvidenceReference = { sha256: string; uri: string };
+export type EvidenceReference = {
+  sha256: string;
+  uri: string;
+  ipfsCid?: string;
+  ipfsUri?: string;
+};
 
 export class EvidenceIntegrityError extends Error {}
 
@@ -27,7 +33,13 @@ export class EvidenceStore {
     } finally {
       await rm(temporary, { force: true });
     }
-    return { sha256, uri: `/evidence/${sha256}` };
+    const ipfsCid = computeIpfsCidV0(sha256);
+    return {
+      sha256,
+      uri: `/evidence/${sha256}`,
+      ipfsCid,
+      ipfsUri: `ipfs://${ipfsCid}`,
+    };
   }
 
   async get(sha256: string): Promise<Buffer | undefined> {

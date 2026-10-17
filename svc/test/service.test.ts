@@ -76,8 +76,11 @@ test("HTTP evidence round trip requires authorization, exact bytes and limits", 
     assert.equal((await fetch(`${base}/evidence`, { method: "POST", headers, body: "abcde" })).status, 413);
     const uploaded = await fetch(`${base}/evidence`, { method: "POST", headers, body: "abc" });
     assert.equal(uploaded.status, 201);
-    const reference = await uploaded.json() as { sha256: string; uri: string };
-    assert.deepEqual(reference, { sha256: ABC_SHA256, uri: `/evidence/${ABC_SHA256}` });
+    const reference = await uploaded.json() as { sha256: string; uri: string; ipfsCid?: string; ipfsUri?: string };
+    assert.equal(reference.sha256, ABC_SHA256);
+    assert.equal(reference.uri, `/evidence/${ABC_SHA256}`);
+    assert.ok(reference.ipfsCid?.startsWith("Qm"));
+    assert.ok(reference.ipfsUri?.startsWith("ipfs://"));
     assert.equal((await fetch(`${base}${reference.uri}`)).status, 401);
     const downloaded = await fetch(`${base}${reference.uri}`, { headers: { authorization } });
     assert.equal(downloaded.status, 200);
