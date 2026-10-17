@@ -177,7 +177,7 @@ Solo Testnet, sin fondos reales ni incorporación de inversores. No constituye o
 
 ## Material de entrega
 
-[Guion cronometrado](pitch/video-script.md), [pitch PDF](output/pdf/yerbacapital-pitch.pdf) y [estado de entrega](TASKS.md). El guion es material para grabar; no acredita una grabación ni un envío. La publicación web requiere alojamiento accesible del servicio/índice, no solo Next en Vercel. Nunca subir `.env.production` con secretos; cargar variables en el proveedor de forma privada.
+[Guion cronometrado](pitch/video-script.md), [pitch PDF](output/pdf/yerbacapital-pitch.pdf) y [estado de entrega](TASKS.md). El guion es material para grabar; no acredita una grabación ni un envío. La publicación web requiere alojamiento accesible del servicio/índice, no solo Next en Vercel. Nunca subir `.env.production` con secretos; cargar variables en el proveedor de forma privada. La guía para desplegar la web desde una cuenta personal está en [docs/production.md](docs/production.md).
 
 El [anticipo narrado del pitch](output/video/pitch-preview-narrado.mp4) dura 3:14 y utiliza voz sintética. No es el video de aceptación con Freighter. La [narración editable](pitch/narration.txt) y la fuente del PDF quedan disponibles para revisión del equipo.
 
