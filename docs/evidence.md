@@ -135,3 +135,15 @@ Esta sección registra ejecución mediante control de la interfaz y firmas de la
 - Al preparar el permiso de repago, la app aún detectó la cuenta verificadora; se descartó esa preparación antes de firmar y se pidió seleccionar Demo Cooperativa. No se autorizó gasto desde el verificador.
 
 - Simulador MoneyGram revisado desde la interfaz: 1.000 USDC → 1.280.000 ARS, destino ficticio Posadas; 5.000 USDC → 6.400.000 ARS, cuenta bancaria ficticia. Ambos resultados mostraron ausencia de transacción, orden y código de retiro. Se cerró el diálogo y se comprobó que quedó oculto. Son cálculos locales con supuesto fijo, sin cotización ni integración externa.
+
+- Permiso SAC para repago parcial, confirmado por el usuario en Freighter desde Demo Cooperativa: [593daff1a47d289d8f5c956111a0b924e82d64a203c1332c7d4bdad43861346f](https://stellar.expert/explorer/testnet/tx/593daff1a47d289d8f5c956111a0b924e82d64a203c1332c7d4bdad43861346f). Máximo 1.000 USDC de prueba; vencimiento ledger 5238061. La app mostró Confirmada en Testnet. Este permiso por sí solo no repaga deuda.
+
+- Repago parcial web del préstamo 3, confirmado por el usuario en Freighter: [7c7234e11d64a02fec62846c5b76d9fab9457b4db5556b6e5eb278ff67668a68](https://stellar.expert/explorer/testnet/tx/7c7234e11d64a02fec62846c5b76d9fab9457b4db5556b6e5eb278ff67668a68). Importe máximo enviado: 1.000 USDC de prueba; app Confirmada en Testnet.
+
+- Permiso SAC para cancelación total, confirmado por el usuario en Freighter desde Demo Cooperativa: [0d52942039219a7b1df1599dfe0b6a6edf040c83da508032cfe3761be972e21b](https://stellar.expert/explorer/testnet/tx/0d52942039219a7b1df1599dfe0b6a6edf040c83da508032cfe3761be972e21b). Máximo 4.500 USDC de prueba, vencimiento ledger 5238085; app Confirmada en Testnet. Deuda consultada luego del repago parcial: 4.000,0061455 USDC, con estado PartiallyRepaid; importe temporal, no deuda fija para ejecuciones posteriores.
+
+- Repago total web del préstamo 3, confirmado por el usuario en Freighter: [e88a9db298d8347a63793c65c89b3ef0d684f8cb8b18cc2e6feba49da876a629](https://stellar.expert/explorer/testnet/tx/e88a9db298d8347a63793c65c89b3ef0d684f8cb8b18cc2e6feba49da876a629). Máximo de pago 4.500 USDC de prueba; app Confirmada en Testnet. Consulta posterior con clientes generados: préstamo `Repaid`, deuda `0`; lote 3 `Verified` / `Receipted`, sin préstamo vinculado y 12.000 kg. No se ejecutó el retiro parcial opcional en este recorrido web.
+
+- Revocación del permiso SAC sobrante, confirmada por el usuario en Freighter desde Demo Cooperativa: [8f9b50a513413432f28af80fd1ff237b131947634554cb5735ad6301585d61f2](https://stellar.expert/explorer/testnet/tx/8f9b50a513413432f28af80fd1ff237b131947634554cb5735ad6301585d61f2). La app devolvió el enlace de confirmación antes de preparar el segundo lote.
+
+- Consulta posterior con cliente SAC generado: allowance de Demo Cooperativa al vault = `0`, luego de la revocación.
