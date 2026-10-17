@@ -87,6 +87,14 @@ Usá exclusivamente cuentas de Testnet fondeadas con XLM de prueba. Las cuentas 
 
 El estado financiero se consulta al contrato, nunca se calcula en el navegador ni se infiere del indexador. Después de un reclamo, la exposición congelada es contabilidad del reclamo y no un segundo saldo cobrable. Ver [docs/demo-script.md](docs/demo-script.md).
 
+## Datos para recorrer la demo
+
+El [kit de prueba y guion completo](docs/demo-script.md#kit-de-datos-para-probar-desde-el-navegador) incluye cuentas públicas de referencia, preparación de cuentas Freighter distintas, generación de comprobantes sintéticos y valores para copiar en los formularios. Cubre ingreso con cofirma, certificado, valuación, fondeo, inspección, repago parcial/total, retiro parcial opcional y deterioro/default/reclamo en un segundo lote. Usá los IDs que devuelva cada operación; los lotes históricos 1 y 2 ya tienen sus recorridos terminados.
+
+La sección **8. MoneyGram** del mismo kit explica cómo probar ambos destinos ficticios, importes válidos e inválidos y accesibilidad del diálogo. El supuesto fijo del simulador es 1 USDC = 1.280 ARS, antes de costos; no es una cotización de mercado ni una integración operativa.
+
+La conexión de Freighter y la carga de una imagen sintética con firma de mensaje se comprobaron localmente el 17/10/2026. Esto todavía no completa la aceptación de transacciones financieras y cofirmas en el navegador. El detalle y los límites de la comprobación están en [evidencia](docs/evidence.md).
+
 ## Contratos reproducibles
 
 Herramientas fijadas: **Rust 1.92.0**, **soroban-sdk 29.0.1**, **Stellar CLI 28.1.0**, **Stellar JS SDK 16.0.1**. Rust se instala con [rustup](https://rustup.rs/); la CLI, desde su [release oficial](https://github.com/stellar/stellar-cli/releases/tag/v28.1.0). Agregá sus ejecutables a `PATH`. `rust-toolchain.toml` fija target `wasm32v1-none`, rustfmt y Clippy. La CLI rechaza Rust 1.91.0 por un problema conocido del compilador.

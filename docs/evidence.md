@@ -1,6 +1,6 @@
 # Evidencia de Testnet
 
-Estado: contratos desplegados en Testnet; detalle y transacciones confirmadas abajo. La aceptación de la app con Freighter todavía está pendiente.
+Estado: contratos desplegados en Testnet; detalle y transacciones confirmadas abajo. La aceptación completa de la app con Freighter todavía está pendiente; conexión y firma de mensaje para carga de imagen verificadas el 17/10/2026 (detalle al final).
 
 Los futuros despliegues deberán registrar red, contrato, ID, hash de transacción y enlace de Stellar Expert Testnet. No se deben inventar IDs ni usar resultados locales como evidencia on-chain.
 
@@ -82,3 +82,26 @@ Risk path preserves Impaired after the lender claims the receipt. Physical recov
 - Evidence downloaded through `/api/evidence/4f2381ecef2a5b3894101f48d117866e92c8052c547178976a622240c296ff76` reproduced the SHA-256 recorded in lot 1's LotVerified event.
 - Desktop/mobile read-only Testnet browser tests passed; screenshots remain local in app/test-results (ignored). They verify queries and missing-wallet handling, not a real Freighter signature.
 - Human Freighter signing/recording remains pending. The CLI demo and native test harness do not satisfy that acceptance item.
+
+## Freighter y evidencia local — 2026-10-17
+
+- Chrome con extensión Freighter oficial, red Testnet y app en `http://127.0.0.1:3000/dashboard`.
+- Cuenta pública conectada: `GB4T2BPEQHTQDIJRNZD355KY4GNYEG2VK6XUIG6YENBS74IQHAYX5FRH`. Friendbot fondeó XLM de prueba; esto no acredita saldo del USDC propio de la demo.
+- El admin local otorgó `Verifier` **mediante Stellar CLI**, no Freighter: [320bb706856537a43b9d86260cc3ce4a9e1e2148207c982f6784bbb04b2bc3c0](https://stellar.expert/explorer/testnet/tx/320bb706856537a43b9d86260cc3ce4a9e1e2148207c982f6784bbb04b2bc3c0). RPC consultado nuevamente: `SUCCESS`, ledger `5237403`. Consulta generada `has_role`: true.
+- Desde la interfaz de Verificaciones se seleccionó una ilustración PNG explícitamente sintética y se autorizó el permiso de carga con **firma de mensaje de Freighter**. El diálogo mostró origen local, cuenta, registry, Testnet, hash y nonce. No fue una transacción on-chain ni una atestación del lote.
+- La app confirmó «Imagen guardada localmente» e informó que IPFS no estaba configurado. SHA-256: `8d6d9dc240b4575e70bb7267f65604f6fa4a529d7e5e61989e98fe14cfeceed2`.
+- Se recuperaron 9.436 bytes desde `/api/evidence/8d6d9dc240b4575e70bb7267f65604f6fa4a529d7e5e61989e98fe14cfeceed2`; el SHA-256 calculado coincide. Esta URL depende del servidor y almacenamiento locales; no es una publicación IPFS ni una URL externa persistente.
+- `/api/system` respondió `testnet_ready`, registry/vault/evidence disponibles. Se reinició el proceso del indexador y confirmó lectura de un nuevo evento, sin modificar contratos.
+- Consultas nuevas con clientes generados: lote 1 `Verified` / `Receipted`, 11.000 kg, préstamo 1 `Repaid`, deuda cero; lote 2 `Impaired` / `Receipted`, 12.000 kg, préstamo 2 `Liquidated`. Su exposición congelada es contabilidad del reclamo, no un saldo nuevamente cobrable.
+- El gateway público devolvió 12 eventos para lote 1 y 11 para lote 2 en la consulta de esta sesión. Estos historiales corresponden a los recorridos CLI previos; no son nuevos recorridos Freighter.
+
+**Pendiente:** creación de las cuentas Freighter restantes (la extensión solicitó la contraseña al crear otra dirección), preparación de trustlines y saldo USDC, ejecución completa de transacciones/cofirmas desde la web y grabación humana. La firma de mensaje anterior no satisface estos puntos. No se registran contraseñas, claves ni frases de recuperación.
+
+### Handoff
+- Persona: DevOps / Release Engineer
+- Changed: docs/evidence.md
+- ABI change: no
+- Tests: RPC getTransaction → SUCCESS; has_role → true; descarga de evidencia → hash coincidente; api/system → testnet_ready; historiales de lotes → disponibles.
+- Evidence: transacción y SHA-256 indicados arriba.
+- Next owner: equipo de demo — completar cuentas y aceptación Freighter.
+- Open questions: acceso humano a la contraseña de Freighter; no compartirla en el chat.
