@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { link, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { computeIpfsCidV0 } from "./ipfs.js";
+
 
 export type EvidenceReference = {
   sha256: string;
@@ -33,13 +33,31 @@ export class EvidenceStore {
     } finally {
       await rm(temporary, { force: true });
     }
-    const ipfsCid = computeIpfsCidV0(sha256);
     return {
       sha256,
       uri: `/evidence/${sha256}`,
-      ipfsCid,
-      ipfsUri: `ipfs://${ipfsCid}`,
     };
+  }
+
+  async putMetadata(sha256: string, metadata: EvidenceMetadata): Promise<void> {
+    if (!(await this.get(sha256))) throw new Error("Evidence must exist before metadata.");
+    // Separate pin metadata is monotonic: concurrent local fallbacks cannot erase a confirmed pin.
+    const suffix = metadata.storage.kind === "ipfs" ? "ipfs.json" : "metadata.json";
+    const temporary = join(this.directory, `.metadata-${randomUUID()}`);
+    try {
+      await writeFile(temporary, JSON.stringify(metadata), { flag: "wx", mode: 0o600 });
+      await rename(temporary, join(this.directory, `${sha256}.${suffix}`));
+    } finally { await rm(temporary, { force: true }); }
+  }
+
+  async getMetadata(sha256: string): Promise<EvidenceMetadata | undefined> {
+    const bytes = await this.get(sha256);
+    if (!bytes) return undefined;
+    for (const suffix of ["ipfs.json", "metadata.json"]) {
+      try { return JSON.parse(await readFile(join(this.directory, `${sha256}.${suffix}`), "utf8")) as EvidenceMetadata; }
+      catch (error) { if (!hasCode(error, "ENOENT")) throw error; }
+    }
+    return { sha256, mediaType: detectImageType(bytes) ?? "application/octet-stream", storage: { kind: "local" } };
   }
 
   async get(sha256: string): Promise<Buffer | undefined> {
@@ -64,4 +82,12 @@ function digest(bytes: Uint8Array): string {
 
 function hasCode(error: unknown, code: string): boolean {
   return error instanceof Error && "code" in error && error.code === code;
+}
+
+export type EvidenceMetadata = { sha256: string; mediaType: string; storage: { kind: "local" | "ipfs"; cid?: string; gatewayUrl?: string } };
+export function detectImageType(bytes: Uint8Array): string | undefined {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (Buffer.from(bytes.subarray(0, 8)).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return "image/png";
+  if (Buffer.from(bytes.subarray(0,4)).toString() === "RIFF" && Buffer.from(bytes.subarray(8,12)).toString() === "WEBP") return "image/webp";
+  return undefined;
 }

@@ -40,3 +40,14 @@ export function walletSigners(address: string) {
   };
   return { publicKey: address, signTransaction, signAuthEntry };
 }
+
+/** Off-chain SEP-53 proof of this key for a single evidence upload; never signs a transaction. */
+export async function signEvidenceMessage(address: string, message: string): Promise<string> {
+  await assertWalletNetwork();
+  const current = await freighter.getAddress();
+  if (current.error || current.address !== address) throw new Error("La cuenta cambió; reconectá antes de autorizar.");
+  const result = await freighter.signMessage(message, { address, networkPassphrase: TESTNET_PASSPHRASE });
+  if (result.error) throw new Error(result.error.message);
+  if (result.signerAddress !== address || !result.signedMessage) throw new Error("No se obtuvo una firma válida de la cuenta conectada.");
+  return typeof result.signedMessage === "string" ? result.signedMessage : result.signedMessage.toString("base64");
+}

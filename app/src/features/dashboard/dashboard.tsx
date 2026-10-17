@@ -117,7 +117,7 @@ export function Dashboard({ chainEnabled, initialRole = "borrower" }: { chainEna
     </aside>
     <main id="main" className="yc-main" tabIndex={-1}>
       <header className="yc-topbar"><div><p className="yc-eyebrow">Financiamiento agroindustrial</p><h1>{page === "Resumen" ? "Panel de control" : page}</h1><p className="yc-sub">Liquidez para la yerba mate. Registros y evidencia verificables.</p></div>
-        <div className="yc-actions">{role === "borrower" && <button className="yc-btn secondary" onClick={() => setRampModalOpen(true)}><Banknote size={16} aria-hidden="true" />Rampa ARS (MoneyGram)</button>}{role !== "lender" && <a className="yc-btn secondary" href="/investors">Explorar como inversor<ArrowUpRight size={16} aria-hidden="true" /></a>}<span className="yc-pill amber"><FlaskConical size={13} aria-hidden="true" />{chainEnabled ? "Testnet · Datos sintéticos" : "Modo off-chain"}</span>{canPresent("register_lot") && <button className="yc-btn primary" disabled={!chainEnabled} onClick={() => operate("register_lot")}><Plus size={16} aria-hidden="true" />Registrar lote</button>}</div>
+        <div className="yc-actions">{role === "borrower" && <button className="yc-btn secondary" onClick={() => setRampModalOpen(true)}><Banknote size={16} aria-hidden="true" />Simular conversión a pesos</button>}{role !== "lender" && <a className="yc-btn secondary" href="/investors">Explorar como inversor<ArrowUpRight size={16} aria-hidden="true" /></a>}<span className="yc-pill amber"><FlaskConical size={13} aria-hidden="true" />{chainEnabled ? "Testnet · Datos sintéticos" : "Modo off-chain"}</span>{canPresent("register_lot") && <button className="yc-btn primary" disabled={!chainEnabled} onClick={() => operate("register_lot")}><Plus size={16} aria-hidden="true" />Registrar lote</button>}</div>
       </header>
       <div className="yc-principle"><ShieldCheck size={18} aria-hidden="true" /><p><strong>El token no es la yerba.</strong> La blockchain registra autoría e integridad; no garantiza existencia, calidad ni custodia física.</p></div>
       {role === "lender" && page === "Resumen" && <InvestorMap onFinancing={() => navigate("Financiamiento")} />}
@@ -154,7 +154,7 @@ export function Dashboard({ chainEnabled, initialRole = "borrower" }: { chainEna
         onClose={() => setRampModalOpen(false)}
         defaultUsdcAmount={
           data.loans[0]
-            ? (Number(data.loans[0].loan.principal) / 10_000_000).toString()
+            ? formatUnits(data.loans[0].loan.principal)
             : "50000"
         }
         loanId={data.loans[0]?.loan.id.toString()}

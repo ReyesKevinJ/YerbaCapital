@@ -144,3 +144,27 @@ accesible también sin soporte de animaciones vinculadas al scroll.
 
 Interacción de `.landing-story`: elevación (`translateY(-8px)`), reorientación sutil (`rotate(-0.5deg)`), sombra profunda y respuesta armónica del sol, paisaje e icono, con retorno fluido (`cubic-bezier(.22, 1, .36, 1)`) al quitar el cursor. No colisiona con la animación de entrada inicial `landing-enter` (que actúa sobre `translate` y `opacity`). En dispositivos táctiles (`pointer: coarse`, `hover: none`) y pantallas angostas (`<= 720px`) se desactiva la inclinación para evitar estados pegados o desbordes. En modo de movimiento reducido (`prefers-reduced-motion: reduce`), las transiciones y transformaciones se anulan por completo (`transform: none !important`). Sin dependencias adicionales ni código JavaScript en la landing.
 
+
+### Handoff — corrección inicial tras actualización 78a405a (superada por el cierre siguiente)
+- Persona: App Engineer
+- Changed: separación inicial del código de servidor y navegador; el helper provisional de CID fue eliminado al completar el cierre siguiente
+- ABI change: no
+- Tests: app typecheck y lint correctos; GET / y /lots/1 vuelven a responder HTTP 200 tras reproducir el error 500 de Webpack por node:crypto
+- Evidence: el error 500 se corrigió; la implementación final elimina la inferencia de CID desde el hash
+- Next owner: Oracle Engineer / App Engineer — revisar autenticación real del upload, persistencia de CID y presentación honesta del simulador MoneyGram
+- Open questions: un hash local no prueba publicación en IPFS; la dirección pública del verifier no autentica al solicitante; el simulador no debe fabricar enlaces de transacción ni confirmar fondos bloqueados
+
+### Handoff — cierre de pendientes técnicos y documentación (17/10/2026)
+- Personas: tareas separadas App Engineer y Oracle Engineer, integradas por coordinador; Docs & Pitch para README/guion/materiales
+- Changed: autenticación de evidencia, almacenamiento/metadatos, comprobación pública, simulador ARS, README, TASKS, pitch y guion
+- ABI change: no; contratos y clientes generados sin cambios de fuente
+- Tests: controles integrados y resultados finales en TASKS; pruebas Freighter humana y pin con proveedor real siguen pendientes
+- Evidence: pitch PDF de 7 páginas y anticipo narrado de 3:14; estos materiales no sustituyen aceptación de billetera
+- Next owner: equipo — acceso hosting, pin opcional, ensayo/firmas humanas, nombres públicos y publicación/entrega aprobadas
+- Open questions: Vercel sin equipos/proyectos accesibles; servicio persistente público y aceptación Freighter
+
+SEP-53 en upload prueba posesión de una clave Ed25519 de la demo. No implementa ni
+certifica políticas de cuentas multisig/smart accounts. El contrato vuelve a decidir
+autorizaciones de las operaciones financieras/físicas. No se firma por el usuario.
+
+Validación integrada final: `pnpm typecheck`, `pnpm lint`, `pnpm test` y `pnpm build` correctos; 42 unidades, 43 casos navegador aprobados/1 omitido y 20 casos de suite Testnet aprobados. Versión compilada local activa en 3000, servicio actualizado en 3001 e indexador conservado. No hubo firmas nuevas ni cambios en contratos.

@@ -3,7 +3,7 @@ import { PilotError } from "../pilot/model.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { ServiceConfig } from "../config/environment.js";
-import { EvidenceIntegrityError, EvidenceStore } from "../storage/evidence-store.js";
+import { detectImageType, EvidenceIntegrityError, EvidenceStore } from "../storage/evidence-store.js";
 import { catalogPage } from "../indexer/catalog.js";
 import { readHistory } from "../indexer/store.js";
 
@@ -82,6 +82,35 @@ export function createEvidenceServer(config: ServiceConfig) {
       response.setHeader("Location", reference.uri);
       json(response, 201, reference);
       return;
+    }
+    const metadataMatch = /^\/evidence\/([a-f0-9]{64})\/metadata$/.exec(url.pathname);
+    if (metadataMatch?.[1]) {
+      const sha256 = metadataMatch[1];
+      if (request.method === "GET") {
+        const metadata = await store.getMetadata(sha256);
+        if (!metadata) throw new RequestError(404, "Evidence not found.");
+        json(response, 200, metadata); return;
+      }
+      if (request.method === "PUT") {
+        let metadata: unknown;
+        try { metadata = JSON.parse((await readBody(request, 4096)).toString("utf8")); }
+        catch (error) { if (error instanceof SyntaxError) throw new RequestError(400, "Invalid JSON metadata."); throw error; }
+        if (!metadata || typeof metadata !== "object" || !("sha256" in metadata) || metadata.sha256 !== sha256 ||
+            !("mediaType" in metadata) || !["image/jpeg", "image/png", "image/webp"].includes(String(metadata.mediaType)) ||
+            !("storage" in metadata) || !metadata.storage || typeof metadata.storage !== "object" || !("kind" in metadata.storage) ||
+            !["local", "ipfs"].includes(String(metadata.storage.kind))) throw new RequestError(400, "Invalid evidence metadata.");
+        const bytes = await store.get(sha256);
+        if (!bytes) throw new RequestError(404, "Evidence not found.");
+        if (detectImageType(bytes) !== metadata.mediaType) throw new RequestError(400, "Image format does not match bytes.");
+        const storage = metadata.storage;
+        if (storage.kind === "ipfs" && (!("cid" in storage) || typeof storage.cid !== "string" || !/^Qm[1-9A-HJ-NP-Za-km-z]{44}$/.test(storage.cid) ||
+            !("gatewayUrl" in storage) || typeof storage.gatewayUrl !== "string" || storage.gatewayUrl !== `https://gateway.pinata.cloud/ipfs/${storage.cid}`)) throw new RequestError(400, "Invalid pin reference.");
+        const canonicalStorage: import("../storage/evidence-store.js").EvidenceMetadata["storage"] = storage.kind === "ipfs"
+          ? { kind: "ipfs", cid: String("cid" in storage ? storage.cid : ""), gatewayUrl: String("gatewayUrl" in storage ? storage.gatewayUrl : "") }
+          : { kind: "local" };
+        await store.putMetadata(sha256, { sha256, mediaType: String(metadata.mediaType), storage: canonicalStorage });
+        json(response, 200, { stored: true }); return;
+      }
     }
     const match = /^\/evidence\/([a-f0-9]{64})$/.exec(url.pathname);
     const sha256 = match?.[1];

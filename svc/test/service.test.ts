@@ -79,8 +79,8 @@ test("HTTP evidence round trip requires authorization, exact bytes and limits", 
     const reference = await uploaded.json() as { sha256: string; uri: string; ipfsCid?: string; ipfsUri?: string };
     assert.equal(reference.sha256, ABC_SHA256);
     assert.equal(reference.uri, `/evidence/${ABC_SHA256}`);
-    assert.ok(reference.ipfsCid?.startsWith("Qm"));
-    assert.ok(reference.ipfsUri?.startsWith("ipfs://"));
+    assert.equal(reference.ipfsCid, undefined, "Local storage must not claim a remote IPFS pin.");
+    assert.equal(reference.ipfsUri, undefined);
     assert.equal((await fetch(`${base}${reference.uri}`)).status, 401);
     const downloaded = await fetch(`${base}${reference.uri}`, { headers: { authorization } });
     assert.equal(downloaded.status, 200);
