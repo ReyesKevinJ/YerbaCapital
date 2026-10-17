@@ -93,7 +93,7 @@ El [kit de prueba y guion completo](docs/demo-script.md#kit-de-datos-para-probar
 
 La sección **8. MoneyGram** del mismo kit explica cómo probar ambos destinos ficticios, importes válidos e inválidos y accesibilidad del diálogo. El supuesto fijo del simulador es 1 USDC = 1.280 ARS, antes de costos; no es una cotización de mercado ni una integración operativa.
 
-La conexión de Freighter y la carga de una imagen sintética con firma de mensaje se comprobaron localmente el 17/10/2026. Esto todavía no completa la aceptación de transacciones financieras y cofirmas en el navegador. El detalle y los límites de la comprobación están en [evidencia](docs/evidence.md).
+El 17/10/2026 se comprobaron conexión Freighter, carga de imagen con firma de mensaje y, sobre el lote 3, registro, verificación con cofirma del custodio, emisión, valuación, solicitud y fondeo de 5.000 USDC de prueba desde la web. El repago y el segundo recorrido de riesgo con estas cuentas todavía están pendientes; no se declara completa la aceptación. El detalle y los límites están en [evidencia](docs/evidence.md).
 
 ## Contratos reproducibles
 
