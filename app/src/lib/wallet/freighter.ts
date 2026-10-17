@@ -1,6 +1,7 @@
 import * as freighter from "@stellar/freighter-api";
 import type { SignAuthEntry, SignTransaction } from "@stellar/stellar-sdk/contract";
 import { TESTNET_PASSPHRASE } from "../stellar/network";
+import { connectFreighter } from "./connection";
 
 export async function assertWalletNetwork(): Promise<void> {
   const network = await freighter.getNetwork();
@@ -9,14 +10,7 @@ export async function assertWalletNetwork(): Promise<void> {
 }
 
 export async function connectWallet(): Promise<string> {
-  const installed = await freighter.isConnected();
-  if (!installed.isConnected) throw new Error("Instalá o desbloqueá Freighter para conectar una cuenta de Testnet.");
-  const access = await freighter.requestAccess();
-  if (access.error) throw new Error(access.error.message);
-  await assertWalletNetwork();
-  const account = await freighter.getAddress();
-  if (account.error || !account.address) throw new Error(account.error?.message ?? "No se obtuvo la cuenta.");
-  return account.address;
+  return connectFreighter(freighter, TESTNET_PASSPHRASE);
 }
 
 export function walletSigners(address: string) {

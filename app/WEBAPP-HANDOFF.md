@@ -168,3 +168,22 @@ certifica políticas de cuentas multisig/smart accounts. El contrato vuelve a de
 autorizaciones de las operaciones financieras/físicas. No se firma por el usuario.
 
 Validación integrada final: `pnpm typecheck`, `pnpm lint`, `pnpm test` y `pnpm build` correctos; 42 unidades, 43 casos navegador aprobados/1 omitido y 20 casos de suite Testnet aprobados. Versión compilada local activa en 3000, servicio actualizado en 3001 e indexador conservado. No hubo firmas nuevas ni cambios en contratos.
+
+
+### Handoff — reconexión y errores de preparación (17/10/2026)
+- Persona: Integration Engineer
+- Changed: app/src/lib/stellar/invoke.ts
+- ABI change: no; contratos y fuentes de clientes generados intactos.
+- Tests: regresión de simulación RoleMissing confirma cero firmas y cero envíos; incluida en los 34 tests de app correctos. Typecheck, lint y build correctos.
+- Evidence: simulación real de verify_lot sobre lote 4 con cuenta cooperativa devuelve HostError Error(Contract, #3), aunque el SDK expone Result.Err con mensaje vacío. Se preserva el error de simulation para el mapa existente.
+- Next owner: App Engineer — usar assertSimulationSucceeded antes de mostrar revisión de firmas.
+- Open questions: none.
+
+### Handoff — conexión y estados de la consola (17/10/2026)
+- Persona: App Engineer
+- Changed: app/src/lib/wallet/connection.ts, app/src/lib/wallet/freighter.ts, app/src/components/protocol-workbench.tsx, app/test/wallet-connection.test.ts, app/test/protocol.test.ts
+- ABI change: no.
+- Tests: app test → 34 aprobados; typecheck, lint y build correctos. Seis casos de conexión y una regresión de error de simulación añadidos.
+- Evidence: lote 4 registrado en Testnet; preparación incorrecta de verificación descartada sin enviar. La consola deja de mostrar Simulando después de un error, y rechaza simulation.error antes de ofrecer firma. La conexión reutiliza acceso concedido y limita las esperas de lecturas; no reintenta firmas ni transacciones.
+- Next owner: equipo de demo — seleccionar cuenta verificadora y completar segundo recorrido.
+- Open questions: falta completar aceptación del recorrido de riesgo desde estas cuentas. La prueba unitaria de extensión silenciosa no sustituye una prueba real de timeout en Freighter.

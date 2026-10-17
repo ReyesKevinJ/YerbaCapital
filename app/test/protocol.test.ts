@@ -3,7 +3,7 @@ import { test } from "node:test";
 import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 import { parseUnits, formatUnits } from "../src/lib/stellar/units";
 import { ConfirmationPending, invoke } from "../src/lib/stellar/invoke";
-import { contractError } from "../src/lib/stellar/errors";
+import { contractError, explainError } from "../src/lib/stellar/errors";
 
 test("amount input/display preserves exact large quantities and rejects rounding input", () => {
   assert.equal(parseUnits("9007199254740993.0000001"), 90071992547409930000001n);
@@ -53,4 +53,14 @@ test("simulation and wallet rejection stop before broadcast", async () => {
   rejected.tx.sign = async () => { throw new Error("wallet rejected"); };
   await assert.rejects(invoke(async () => rejected.tx), /wallet rejected/);
   assert.equal(rejected.calls.sends, 0);
+});
+
+test("a returned contract simulation error is rejected before wallet signing", async () => {
+  const rejected = transaction("SUCCESS");
+  rejected.tx.simulation = { id: "test", _parsed: true, error: "HostError: Error(Contract, #3)", latestLedger: 1, events: [] };
+  await assert.rejects(invoke(async () => rejected.tx), error => {
+    assert.match(explainError(error), /La cuenta no tiene el rol requerido.*#3/);
+    return true;
+  });
+  assert.deepEqual(rejected.calls, { signs: 0, sends: 0 });
 });

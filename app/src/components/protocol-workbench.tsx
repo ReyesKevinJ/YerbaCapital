@@ -6,7 +6,7 @@ import type { Lot } from "registry-client";
 import { connectWallet, walletSigners } from "../lib/wallet/freighter";
 import { buildOperation, type Operation } from "../lib/stellar/operations";
 import { getCapacity, getDebt, getLatestLedger, getLoan, getLot, getTransaction } from "../lib/stellar/query";
-import { ConfirmationPending, invoke, type TxPhase } from "../lib/stellar/invoke";
+import { assertSimulationSucceeded, ConfirmationPending, invoke, type TxPhase } from "../lib/stellar/invoke";
 import { explainError } from "../lib/stellar/errors";
 import { formatUnits } from "../lib/stellar/units";
 
@@ -130,7 +130,7 @@ export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfir
   async function action(work: () => Promise<void>) {
     if (active.current) return;
     active.current = true; setBusy(true); setError("");
-    try { await work(); } catch (error) { setError(explainError(error)); }
+    try { await work(); } catch (error) { setStatus(""); setError(explainError(error)); }
     finally { active.current = false; setBusy(false); }
   }
   function invalidate() { setCapacity(undefined); setPrepared(undefined); setRequired([]); setStatus(""); }
@@ -142,6 +142,7 @@ export function ProtocolWorkbench({ request, view = "all", selectedLot, onConfir
       const contractValues = toContractValues(values);
       const address = await connectWallet(); setAccount(address); setSource(address);
       const tx = await buildOperation(operation, contractValues, address);
+      assertSimulationSucceeded(tx);
       setPrepared(tx); setRequired(tx.needsNonInvokerSigningBy());
       setStatus("Operación simulada. Revisá los datos antes de firmar.");
     });
