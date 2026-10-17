@@ -2,6 +2,13 @@ import type { AssembledTransaction } from "@stellar/stellar-sdk/contract";
 
 export type TxPhase = "simulating" | "awaiting_signature" | "submitting" | "confirmed";
 export type TxOutcome<T> = { hash: string; result: T };
+
+/** Generated clients may expose contract failures as Result.Err without throwing. */
+export function assertSimulationSucceeded(tx: Pick<AssembledTransaction<unknown>, "simulation">): void {
+  if (tx.simulation && "error" in tx.simulation) {
+    throw new Error(tx.simulation.error);
+  }
+}
 export class ConfirmationPending extends Error {
   constructor(public readonly hash: string) {
     super("La confirmación sigue pendiente. Consultá la transacción antes de volver a enviarla.");
@@ -15,6 +22,7 @@ export async function invoke<T>(
 ): Promise<TxOutcome<T>> {
   phase("simulating");
   const tx = await build();
+  assertSimulationSucceeded(tx);
   const required = tx.needsNonInvokerSigningBy();
   if (required.length) throw new Error(`Faltan co-firmas de: ${required.join(", ")}. Exportá la operación para co-firmarla.`);
   phase("awaiting_signature");
