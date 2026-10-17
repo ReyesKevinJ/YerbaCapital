@@ -86,13 +86,13 @@ Que el certificado esté libre **no** rehabilita una mercadería deteriorada.
 
 ## 3. Requisitos previos
 
-**Para usar la demo pública** solo necesitás un navegador de escritorio con la extensión **Freighter** instalada y cuentas de **Testnet**.
+**Para recorrer la app** podés usar cualquier navegador de escritorio. Para firmar operaciones necesitás **Google Chrome con la extensión Freighter**, una billetera con una cuenta de **Stellar Testnet** y conectar esa billetera a la app cuando te lo pida. Para operar, la cuenta activa debe tener el rol o la titularidad que requiere esa tarea.
 
 **Para correr la app en tu computadora**, además:
 
 - Node.js 22 o superior y **pnpm 8.10.2**.
 - Python 3 (para los scripts de operaciones del despliegue).
-- Extension Freighter en Chrome o Firefox.
+- Google Chrome y la extensión Freighter instalada y desbloqueada.
 - Cuentas de Testnet con:
   - XLM de prueba (Friendbot) para pagar comisiones.
   - Trustline del activo de demo USDC, si la cuenta recibe o paga USDC.
@@ -108,7 +108,7 @@ La web está publicada en Vercel y apunta a los contratos activos de Testnet.
 
 - URL actual de la demo: `https://app-rouge-zeta-96.vercel.app`
 - Funciona sin cuenta: la landing, el dashboard, la consulta pública por lote y el QR.
-- Para firmar operaciones necesitás Freighter en Testnet con las cuentas autorizadas.
+- Para firmar operaciones necesitás una billetera Freighter conectada a la app, en Testnet, y una cuenta autorizada para la tarea. La app presenta el recorrido según el rol, pero no se lo asigna a la cuenta.
 - La carga de evidencia y el historial indexado dependen del servicio `svc/`, que **todavía no está alojado**. Por eso:
 
 | Endpoint | Qué devuelve hoy | Motivo |
@@ -244,10 +244,13 @@ Con la cadena desactivada vas a leer: *"Las operaciones de la red de prueba est�
 
 ## 7. Conectar Freighter
 
-1. Instalá y desbloqueá la extensión Freighter.
-2. Elegí la red **Stellar Testnet** dentro de la billetera.
-3. En la app, tocá conectar y aprobá el acceso.
-4. Verificá que la cuenta activa sea la que corresponde al rol de la tarea.
+1. En Google Chrome, instalá la extensión oficial **Freighter** y abrila.
+2. Creá o importá una billetera en Freighter y desbloqueala. La app nunca debe recibir tu contraseña ni frase de recuperación.
+3. Elegí **Stellar Testnet** en Freighter y seleccioná la cuenta que vas a usar.
+4. En la app, tocá **Conectar Freighter** y aprobá la conexión. Esto permite que la app consulte la dirección pública y solicite firmas; no le entrega la clave privada.
+5. Confirmá que la cuenta activa corresponde a la tarea. La cuenta puede tener un rol especializado —`custodian`, `verifier` o `price_oracle`— o actuar como `borrower` o `lender`, según la operación.
+
+Los roles se configuran en la cuenta de Stellar, no en el selector **Recorrido de la demo**. Para las cuentas de prueba preparadas, el equipo debe indicar qué cuenta usar para cada rol. En una configuración propia, el administrador autorizado otorga o revoca los roles especializados; la cuenta que solicita un préstamo o presta fondos debe ocupar la posición correspondiente. Una cuenta puede tener permisos para ciertas tareas y no para otras. Además, en el mismo lote, custodio, verificador y tomador deben ser cuentas distintas.
 
 La app rechaza firmar si la red no es Testnet: *"Cambiá Freighter a Stellar Testnet antes de firmar."* Si cambiás de cuenta en Freighter después de conectar, la app pide reconectar antes de firmar. La app nunca guarda claves privadas.
 
