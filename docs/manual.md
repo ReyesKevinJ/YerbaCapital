@@ -202,23 +202,37 @@ bash scripts/bindings.sh --check
 
 | Ruta | Qué encontrás |
 |---|---|
-| `/` | Landing pública: problema, propuesta y límites. Botones a `/dashboard` y `/investors`. |
-| `/dashboard` | Panel de trabajo con selector **Vista por rol**, consulta de lotes y préstamos, y operaciones firmables. |
+| `/` | Landing pública: problema, propuesta, recorridos para entidades yerberas e inversores, casos de demo y límites. |
+| `/dashboard` | Panel de trabajo guiado: elegís un recorrido, una tarea y luego firmás solo si la cuenta tiene el permiso on-chain. |
 | `/investors` | El mismo panel, abierto en la vista Prestamista, con el mapa ilustrativo. |
 | `/lots/<id>` | Consulta pública de un lote: estado actual, historial, comprobantes y QR. No pide billetera. |
 | `/pilot` | Expediente compartido de acuerdos sintéticos del piloto. |
 | `/pilot/local` | Versión anterior del expediente, guardada en el navegador. |
 
+### 6.1 Landing: entendé la propuesta antes de operar
+
+La landing no pide billetera. Presenta el problema del capital inmovilizado durante el estacionamiento y explica qué registra la demo en Testnet.
+
+- En **«Elegí tu recorrido»** podés alternar entre `Tengo yerba estacionándose` y `Quiero explorar oportunidades`. Cada opción traduce el mismo sistema a los pasos y preguntas de cooperativas, secaderos, depósitos o prestamistas.
+- En **«Dos casos. Las señales a la vista.»** podés abrir el lote demo 3, que muestra un ciclo de repago y liberación, o el lote demo 4, que muestra deterioro, default y reclamo del certificado. Ambos enlaces llevan a la consulta pública del lote.
+- La sección sobre el consumo de mate vincula la propuesta con la continuidad de la cadena, pero no convierte a YerbaCapital en una oferta de crédito ni garantiza precio, abastecimiento o rendimiento.
+- Los enlaces `Soy una entidad yerbera` y `Explorar como inversor` abren el panel en el recorrido correspondiente. El mapa del inversor sigue usando ejemplos ficticios, no ofertas de mercadería.
+
+### 6.2 Dashboard: un paso por vez
+
 Elementos permanentes:
 
 - Banner **«El token no es la yerba»**: *"La blockchain registra autoría e integridad; no garantiza existencia, calidad ni custodia física."*
 - Píldoras de entorno: `Testnet · Datos sintéticos` o `Modo off-chain`; pie: `Solo Testnet · Datos sintéticos · Sin oferta de inversión`.
-- Selector **Vista por rol**: ordena el panel y muestra las tareas de ese rol. **No otorga permisos**: el contrato autentica a cada firmante.
-- Panel **Operaciones**: formulario para preparar, revisar y firmar cada tarea.
+- Selector **Recorrido de la demo**: ordena la pantalla según cooperativa, prestamista, custodio, verificador, valuador, administrador o consulta pública. **No otorga permisos**: el contrato autentica a cada firmante.
+- En **Resumen**, la tarjeta `Próximo paso` propone una sola tarea relevante para ese recorrido. También podés ver el recorrido completo o explorar lotes e historial de ejemplo.
+- La navegación principal conserva `Resumen`, `Lotes`, `Financiamiento`, `Verificaciones` y `Actividad` cuando corresponden. `Integraciones` y `Operaciones` están dentro de **«Más detalles de la demo»** para no mezclar los datos técnicos con el primer recorrido.
+- Al preparar una tarea, la app prioriza el flujo `Comprobantes → Datos → Revisión y firma` y oculta temporalmente catálogo, métricas e historial. Volvé a `Resumen` o a otra sección para abandonar esa tarea antes de firmar.
+- La pantalla **Operaciones** permite preparar manualmente otra tarea del recorrido seleccionado. No reemplaza las reglas del contrato.
 
 Con la cadena desactivada vas a leer: *"Las operaciones de la red de prueba están desactivadas. Podés guardar archivos de prueba y gestionar acuerdos. Para firmar, el equipo tiene que activar la conexión con Testnet."*
 
-### 6.1 Consultar lotes y préstamos
+### 6.3 Consultar lotes y préstamos
 
 - Escribí hasta **12 identificadores por vista** y tocá `Consultar`.
 - El catálogo indexado se pagina de a 12 registros (`Página anterior` / `Página siguiente`).
@@ -241,11 +255,12 @@ La app rechaza firmar si la red no es Testnet: *"Cambiá Freighter a Stellar Tes
 
 ## 8. Cómo se firma una operación
 
-1. **Elegí la tarea** en el panel y completá los campos.
-2. **Revisar datos antes de firmar**: la app simula la operación contra Testnet. Si el contrato la rechaza (por ejemplo, humedad fuera de banda o rol faltante), ves el error antes de cualquier firma.
-3. Si la operación necesita **cofirma**, se habilita `Co-firmar con la cuenta activa`. El bloque indica qué cuentas faltan.
-4. **Firmar y enviar a Testnet**: Freighter muestra la transacción y la aprobás.
-5. La app declara éxito solo con confirmación `SUCCESS` y publica el enlace a **Stellar Expert Testnet**.
+1. En **Resumen**, tocá `Próximo paso`; si ya sabés qué hacer, podés abrir la sección correspondiente o `Más detalles de la demo → Operaciones`.
+2. Si la tarea usa evidencia, prepará primero el comprobante indicado. Para registrar un lote, empezá por la carpeta documental; para otros hechos físicos, usá un archivo o foto de inspección según corresponda.
+3. Completá los campos y tocá **Revisar datos antes de firmar**. La app simula la operación contra Testnet. Si el contrato la rechaza (por ejemplo, humedad fuera de banda o rol faltante), ves el error antes de cualquier firma.
+4. Si la operación necesita **cofirma**, se habilita `Co-firmar con la cuenta activa`. El bloque indica qué cuentas faltan.
+5. **Firmar y enviar a Testnet**: Freighter muestra la transacción y la aprobás.
+6. La app declara éxito solo con confirmación `SUCCESS` y publica el enlace a **Stellar Expert Testnet**.
 
 Estados que vas a ver durante el envío:
 
@@ -268,9 +283,9 @@ Atajos útiles del formulario:
 
 ## 9. Tareas por rol
 
-Elegí tu rol en **Vista por rol** para ver solo tus tareas. Recordá que el selector no concede permisos: la cuenta que firma debe tener el rol o ser la titular correspondiente.
+Elegí tu recorrido en **Recorrido de la demo** para ver solo las tareas que la interfaz puede presentar para esa situación. Recordá que el selector no concede permisos: la cuenta que firma debe tener el rol o ser la titular correspondiente.
 
-| Vista por rol | Puede hacer |
+| Recorrido de la demo | Puede preparar |
 |---|---|
 | **Administrador** | `Habilitar una tarea` (otorgar Custodian, Verifier o PriceOracle). No mueve fondos ni colateral. |
 | **Cooperativa / quien pide el préstamo** | `Registrar lote`, `Solicitar préstamo`, `Cancelar solicitud sin fondeo`, `Dar permiso para el pago`, `Pagar préstamo`, `Quitar el permiso de pago`, `Retirar parte del lote en garantía`, `Declarar incumplimiento`. |
@@ -393,7 +408,7 @@ Dos tareas necesitan dos firmas sobre **una misma operación**: `Verificar ingre
 
 1. Conectá la cuenta que inicia (por ejemplo, el verificador) y completá el formulario.
 2. Tocá `Revisar datos antes de firmar`. La app indica: *"Falta co-firma: <cuentas>."*
-3. Tocá el enlace para cambiar de cuenta en Freighter y elegí la cuenta cofirmante (el custodio).
+3. Abrí el selector de cuentas de Freighter y elegí manualmente la cuenta cofirmante (el custodio).
 4. Volvé a la app y tocá `Co-firmar con la cuenta activa`.
 5. Volvé a la cuenta de firma final en Freighter y tocá `Firmar y enviar a Testnet`.
 
@@ -424,16 +439,27 @@ Notas:
 
 Cada afirmación física necesita un hash de evidencia de 64 caracteres hexadecimales.
 
-### 13.1 Guardar un archivo de prueba
+### 13.1 Carpeta documental al registrar un lote
 
-1. En el panel, abrí `Guardá un archivo de prueba`.
+Cuando el recorrido de Cooperativa abre `Registrar lote`, la pantalla de Lotes muestra **«Preparar documentos de un lote: informe, secadero y seguro»** antes del formulario de firma.
+
+1. Abrí la carpeta y cargá el **informe o foto de inspección de prueba**; es obligatorio. El comprobante de secadero y la póliza de seguro son opcionales y siempre sintéticos.
+2. Si querés, escribí un alias ficticio para el secadero. No uses nombres reales, CUIT, CBU ni información comercial sensible.
+3. Tocá `Guardar carpeta de comprobantes`. La app guarda cada archivo y un manifiesto que reúne sus hashes.
+4. Tocá `Usar carpeta en la operación actual`. El SHA-256 del manifiesto pasa al campo de comprobante del registro; los nombres de archivo y el alias permanecen fuera de cadena.
+
+Guardar una carpeta no firma el ingreso ni contrata un seguro. Solo deja preparada la evidencia sintética para la atestación posterior.
+
+### 13.2 Guardar un archivo individual de prueba
+
+1. Abrí **«Más detalles de la demo» → `Operaciones`** y buscá `Guardá un archivo de prueba`.
 2. Elegí un archivo **sintético** de hasta 5 MiB. No incluyas datos personales, CBU, CUIT ni documentos comerciales reales.
 3. Tocá `Guardar comprobante`. La app muestra el SHA-256 y el aviso *"No está firmada ni registrada en blockchain."*
 4. Copiá el código con `Copiar código del comprobante` (o con `Usar comprobante en la operación actual`) y pegalo en la operación que vas a firmar.
 
 Guardar el archivo **no** firma la inspección ni acredita el hecho físico: solo prueba que el archivo no cambió.
 
-### 13.2 Resultado del guardado
+### 13.3 Resultado del guardado
 
 | Mensaje | Significado |
 |---|---|
@@ -443,7 +469,7 @@ Guardar el archivo **no** firma la inspección ni acredita el hecho físico: sol
 
 Un CID o un hash calculado no publican los bytes: solo un pin confirmado permite decir que está en IPFS.
 
-### 13.3 Fotografía de inspección (solo verificador)
+### 13.4 Fotografía de inspección (solo verificador)
 
 1. Elegí una imagen **JPG, PNG o WebP** de hasta 5 MiB (el archivo debe ser realmente de ese formato).
 2. Tocá `Autorizar con Freighter y guardar`: Freighter te pide firmar un permiso de carga (no mueve fondos).
@@ -483,6 +509,15 @@ Es una **simulación local** de una futura rampa tipo MoneyGram. No está conect
 - Importe hasta 1.000.000, con punto decimal y hasta 7 decimales.
 - Destino: `Efectivo (simulación)` con una zona ilustrativa, o `Cuenta bancaria (simulación)` con una cuenta ficticia fija. No se ingresan CBU, alias ni datos reales.
 - El resultado aclara que no se creó ninguna transacción, ni orden, ni código de retiro.
+
+### 15.3 Casos de trazabilidad desde la landing
+
+La landing ofrece dos casos navegables para explicar el sistema sin pedir una firma:
+
+- **Lote demo 3 · Ciclo completo:** recorrido de verificación conjunta, certificado, valuación, fondeo, repago y liberación de garantía.
+- **Lote demo 4 · Riesgo a la vista:** deterioro atestado, default y reclamo del certificado. El estado físico sigue deteriorado: el reclamo digital no entrega la yerba ni reemplaza al custodio o la vía legal.
+
+Son recorridos sintéticos en Testnet. Sirven para revisar la separación entre estado físico, certificado y préstamo; no son una oferta de inversión ni evidencia de una operación comercial real.
 
 ---
 
@@ -613,7 +648,7 @@ Porque el servicio de evidencia solo corre en `127.0.0.1` y todavía no está pu
 - Persona: Docs & Pitch
 - Changed: `docs/manual.md`, `README.md`
 - ABI change: no
-- Tests: revisión documental contra los formularios, etiquetas y mensajes actuales de la app; sin nuevas transacciones.
-- Evidence: capturas de rutas públicas de la demo en Vercel; contratos activos en [evidence.md](evidence.md).
+- Tests: revisión documental contra rutas, recorridos guiados, formularios de evidencia, etiquetas y mensajes actuales de la app; `git diff --check` correcto.
+- Evidence: rutas públicas de la demo en Vercel y contratos activos en [evidence.md](evidence.md).
 - Next owner: equipo de demo — validar el manual en una ejecución real con Freighter y registrar la URL final.
 - Open questions: alojamiento del servicio de evidencia/índice con HTTPS y volumen persistente; URL definitiva de la demo.
