@@ -4,6 +4,28 @@ Prototipo de financiamiento y trazabilidad para lotes de yerba canchada en estac
 
 **El token no es la yerba.** El certificado representa un derecho condicionado sobre un lote verificado y custodiado. La blockchain registra autoría e integridad; no garantiza existencia, calidad ni custodia física. Un default on-chain no recupera la mercadería: requiere al custodio y un proceso legal.
 
+## Contratos activos de la demo (Stellar Testnet)
+
+- **Registry:** [CBS7LFX54UPME7UU4NUZ2UKM5XL5KBMUWIYXW6SNSZKMORZJ7UAEQNN2](https://stellar.expert/explorer/testnet/contract/CBS7LFX54UPME7UU4NUZ2UKM5XL5KBMUWIYXW6SNSZKMORZJ7UAEQNN2).
+- **Vault:** [CAUF5CYPJXY2HUBY2XI67QY55A5QESGCKPOV664Q3JMDVG7URZWDH32U](https://stellar.expert/explorer/testnet/contract/CAUF5CYPJXY2HUBY2XI67QY55A5QESGCKPOV664Q3JMDVG7URZWDH32U).
+- **USDC SAC propio de prueba:** [CCY7HWQXSH7PL2NZHLLOHKXY2IOGLAIQLZKF7WAHYZQNN2NAJGIDKEJM](https://stellar.expert/explorer/testnet/contract/CCY7HWQXSH7PL2NZHLLOHKXY2IOGLAIQLZKF7WAHYZQNN2NAJGIDKEJM). No es USDC de Circle.
+
+Despliegue y transferencias CLI documentados en [evidencia](docs/evidence.md), run `4d2e8e0c36bc7699`. Estos enlaces no sustituyen comprobar disponibilidad después de un reset de Testnet.
+
+## Tecnologías y alcance
+
+Soroban en Rust (`soroban-sdk = 29.0.1` fijado en Cargo.toml), clientes TypeScript generados, SAC compatible con SEP-41 para el activo de prueba y Freighter para firmas. La app usa Next.js; el servicio local conserva evidencia e indexa eventos. La versión del SDK no prueba por sí sola qué protocolo está activo en una red.
+
+IPFS es almacenamiento opcional: solo un pin confirmado permite afirmar publicación; un hash o CID calculado no publica los bytes. El SHA-256 on-chain permite contrastar archivos, no acredita el hecho físico.
+
+El componente de conversión a pesos es **una simulación educativa**, no una integración operativa SEP-24/MoneyGram: no cambia monedas, no bloquea fondos, no emite órdenes cobrables ni valida sucursales. La integración real queda fuera del MVP.
+
+## Uso de IA y datos sintéticos
+
+Se utilizaron asistentes de IA para apoyar la redacción, implementación y revisión (entre ellos Codex y Gemini mediante Antigravity). El equipo debe revisar los resultados y asume la responsabilidad por el proyecto. Los documentos del repositorio y las pruebas indican el alcance de cada comprobación; no se afirma una auditoría independiente.
+
+Los lotes, actores, imágenes de prueba, precios y operaciones de demo son sintéticos. Los parámetros sirven para demostrar el flujo y no constituyen una aprobación del INYM, una valuación comercial ni una decisión crediticia. No se incorporan datos reales de productores o inversores. El mapa contiene ejemplos ficticios y las cifras del simulador ARS son ilustrativas.
+
 ## Estado verificable
 
 - `registry`: roles, atestaciones con evidencia, certificado por lote, masa, deterioro y gravamen. Estado físico y certificado independientes.
@@ -49,7 +71,7 @@ pnpm dev:indexer
 pnpm dev:app
 ```
 
-Abrí **http://127.0.0.1:3000**. El servicio escucha en **http://127.0.0.1:3001**. Ambos usan loopback; esta app local no implementa usuarios ni permisos documentales por organización. Usá solo archivos sintéticos. Para producción local compilada: `pnpm build`, luego `pnpm --filter app start`, conservando servicio e indexador activos. Las variables `NEXT_PUBLIC_*` se fijan al compilar; recompilá si cambiás IDs.
+Abrí **http://127.0.0.1:3000** para la presentación. El panel de entidades está en `/dashboard`, el mapa ilustrativo para inversores en `/investors` y la trazabilidad en `/lots/1` o `/lots/2`. El servicio escucha en **http://127.0.0.1:3001**. Ambos usan loopback; esta app local no implementa usuarios ni permisos documentales por organización. Usá solo archivos sintéticos. Para producción local compilada: `pnpm build`, luego `pnpm --filter app start`, conservando servicio e indexador activos. Las variables `NEXT_PUBLIC_*` se fijan al compilar; recompilá si cambiás IDs.
 
 El lanzador de Next.js carga el `.env` raíz. Desarrollo usa Webpack para evitar una recarga continua observada con las importaciones de clientes generados en Turbopack; la compilación de producción conserva el bundler predeterminado de Next. `EVIDENCE_STORAGE_DIR` e `INDEXER_STORAGE_DIR` se resuelven desde `svc/`. La credencial de evidencia solo circula entre servidores y nunca lleva prefijo `NEXT_PUBLIC_`. Ni el servicio ni la app guardan claves privadas de billetera.
 
@@ -128,7 +150,7 @@ bash scripts/check-contracts.sh
 bash scripts/bindings.sh --check
 ```
 
-Hay 15 pruebas de app/servicio. Con los puertos 3000/3001 libres, el recorrido de evidencia local se prueba en móvil y escritorio:
+La cantidad de pruebas evoluciona con el código: tomá los resultados del runner como fuente. Con los puertos 3000/3001 libres, el recorrido de evidencia local se prueba en móvil y escritorio:
 
 ```sh
 pnpm --filter app exec playwright install chromium
@@ -137,10 +159,18 @@ pnpm test:e2e
 PLAYWRIGHT_CHROME_CHANNEL=chrome pnpm test:e2e
 ```
 
-Estas cuatro pruebas de navegador verifican bytes, teclado, límites y recuperación de errores con la integración on-chain desactivada explícitamente. No certifican firmas reales de Freighter. Con el seeder completado y los tres servidores activos, `PLAYWRIGHT_CHROME_CHANNEL=chrome pnpm --filter app test:testnet` ejecuta otras dos pruebas de consulta pública real en Testnet (móvil/escritorio), sin billetera. Capturas y trazas quedan en `app/test-results/`, fuera de Git. GitHub Actions comprueba Rust, Wasm, consistencia de bindings, TypeScript, lint, tests, build y navegador.
+Las pruebas de navegador verifican bytes, teclado, límites y recuperación de errores con la integración on-chain desactivada explícitamente. No certifican firmas reales de Freighter. Con el seeder completado y los tres servidores activos, `PLAYWRIGHT_CHROME_CHANNEL=chrome pnpm --filter app test:testnet` ejecuta pruebas de consulta pública real en Testnet (móvil/escritorio), sin billetera. Capturas y trazas quedan en `app/test-results/`, fuera de Git. GitHub Actions comprueba Rust, Wasm, consistencia de bindings, TypeScript, lint, tests, build y navegador.
 
 ## Límites y continuidad
 
 [AGENTS.md](AGENTS.md) define principios y responsabilidades; [arquitectura](docs/architecture.md), [especificación 0.3.0](docs/contract-spec.md), [evidencia](docs/evidence.md) y [handoff](docs/handoff.md) separan diseño, implementación y validación. Toda lógica financiera y de permisos pertenece a los contratos. El índice y la app solo facilitan consulta y firma.
 
 Solo Testnet, sin fondos reales ni incorporación de inversores. No constituye oferta de inversión ni asesoramiento legal, financiero o tributario. Cualquier uso real requiere estructuración legal, evaluación de PSAV/CNV y AML/CFT, custodia, seguros, auditorías y cumplimiento cambiario/tributario aplicable. No hay integración bancaria, off-ramp, seguro, mercado secundario ni venta con deuda.
+
+## Material de entrega
+
+[Guion cronometrado](pitch/video-script.md), [pitch PDF](output/pdf/yerbacapital-pitch.pdf) y [estado de entrega](TASKS.md). El guion es material para grabar; no acredita una grabación ni un envío. La publicación web requiere alojamiento accesible del servicio/índice, no solo Next en Vercel. Nunca subir `.env.production` con secretos; cargar variables en el proveedor de forma privada.
+
+El [anticipo narrado del pitch](output/video/pitch-preview-narrado.mp4) dura 3:14 y utiliza voz sintética. No es el video de aceptación con Freighter. La [narración editable](pitch/narration.txt) y la fuente del PDF quedan disponibles para revisión del equipo.
+
+Para el upload del inspector se firma un desafío de corta duración ligado al archivo, cuenta, origen y registry. El servidor verifica la firma y consulta el rol vigente; una dirección pública sola no autentica. Esto prueba una clave Ed25519 de demo, no una política multisig. Los bytes y metadatos se guardan en disco; conservar el directorio de evidencia para reinicios. `PINATA_JWT` opcional solo en servidor habilita el intento de pin: si no se confirma recuperación íntegra por gateway, el archivo sigue local y la interfaz lo informa. Un pin real requiere prueba adicional con el proveedor configurado.
