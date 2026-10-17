@@ -17,7 +17,7 @@ No cambiar ABI ni redeployar para corregir la Webapp.
 - [x] Ficha pública: descargar y comprobar SHA-256 en navegador, sin confundir integridad con veracidad física; manejar documentos no-imagen, faltantes y alteraciones.
 - [x] Simulador ARS: importes exactos, supuesto fijo ilustrativo, sin PII, códigos cobrables, hashes inventados ni confirmaciones de bloqueo/liquidación.
 - [x] Accesibilidad del simulador: teclado, Escape, foco de regreso y modo oscuro.
-- [ ] Aceptación humana completa con Freighter: autenticación del upload, registro, cofirma, fondeo, repagos y rechazo de firma.
+- [x] Aceptación humana con Freighter: autenticación del upload, registro, cofirma, fondeo, repagos, recorrido de deterioro/default/reclamo y bloqueo de una operación inválida antes de firma. Los hashes y límites constan en `docs/evidence.md`.
 
 **Fuera del MVP:** off-ramp operativo MoneyGram/SEP-24, conversión real a ARS,
 sucursales verificadas, transferencias bancarias, seguro real, incorporación de
@@ -66,7 +66,7 @@ no cobro implementado ni rentabilidad prometida. No se publica un enlace fictici
 - [x] Repositorio público con esta revisión sincronizada.
 - [ ] URL web pública verificada.
 - [x] Evidencia histórica CLI e IDs en `docs/evidence.md`; volver a comprobar red tras reset.
-- [ ] Aceptación humana Freighter documentada.
+- [x] Aceptación humana Freighter documentada en `docs/evidence.md`.
 - [ ] Video final accesible sin sesión.
 - [ ] Pitch aprobado y enviado.
 - [ ] Confirmación real del envío al hackathon.

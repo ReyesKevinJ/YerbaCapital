@@ -93,7 +93,7 @@ El [kit de prueba y guion completo](docs/demo-script.md#kit-de-datos-para-probar
 
 La sección **8. MoneyGram** del mismo kit explica cómo probar ambos destinos ficticios, importes válidos e inválidos y accesibilidad del diálogo. El supuesto fijo del simulador es 1 USDC = 1.280 ARS, antes de costos; no es una cotización de mercado ni una integración operativa.
 
-El 17/10/2026 se comprobaron conexión Freighter, carga de imagen con firma de mensaje y, sobre el lote 3, registro, verificación con cofirma del custodio, emisión, valuación, solicitud, fondeo de 5.000 USDC de prueba, inspección, repagos parcial/total y revocación del permiso desde la web. El contrato confirmó deuda cero y certificado libre. El segundo recorrido de riesgo con estas cuentas todavía está pendiente; no se declara completa la aceptación. El detalle y los límites están en [evidencia](docs/evidence.md).
+El 17/10/2026 se comprobaron conexión Freighter, carga de imagen con firma de mensaje y dos recorridos web completos con cuentas distintas. El lote 3 recorrió registro, cofirma, emisión, valuación, fondeo de 5.000 USDC de prueba, inspección, repagos parcial/total y revocación del permiso; el contrato confirmó deuda cero y certificado libre. El lote 4 recorrió las mismas etapas hasta fondeo, luego deterioro atestado, default y reclamo: el certificado quedó a nombre del inversor, mientras el lote permanece `Impaired`; eso no equivale a recuperar yerba física. El detalle y los límites están en [evidencia](docs/evidence.md).
 
 ## Contratos reproducibles
 
