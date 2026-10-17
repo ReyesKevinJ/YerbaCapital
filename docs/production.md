@@ -82,6 +82,28 @@ pnpm --filter app build
 
 No redeployar contratos para publicar la web. Si cambian contrato, ABI, IDs o eventos, seguir el protocolo de interfaz de `AGENTS.md` antes de actualizar las variables de Vercel.
 
+## 6. Despliegue de Stellar / Soroban
+
+Vercel no despliega contratos Stellar. El despliegue activo de esta demo ya existe en **Stellar Testnet** y es el que usa la tabla de variables anterior:
+
+| Componente | ID activo |
+|---|---|
+| Registry | `CBS7LFX54UPME7UU4NUZ2UKM5XL5KBMUWIYXW6SNSZKMORZJ7UAEQNN2` |
+| Vault | `CAUF5CYPJXY2HUBY2XI67QY55A5QESGCKPOV664Q3JMDVG7URZWDH32U` |
+| USDC de prueba (SAC) | `CCY7HWQXSH7PL2NZHLLOHKXY2IOGLAIQLZKF7WAHYZQNN2NAJGIDKEJM` |
+
+No hace falta redeployar esos contratos para publicar la web. Los enlaces de despliegue, hashes y transacciones Freighter están en `docs/evidence.md`.
+
+Solo redeployar si Testnet se reinicia o si el equipo aprobó un cambio de contrato/ABI. Esa tarea se ejecuta desde un árbol limpio, con Stellar CLI configurada y credenciales locales ignoradas por Git:
+
+```sh
+bash scripts/deploy.sh
+pnpm build:clients
+bash scripts/seed-demo.sh
+```
+
+Después de un redeploy se deben actualizar los tres IDs de Vercel, `INDEXER_FROM_LEDGER`, `docs/evidence.md` y los clientes generados. Un deploy nuevo crea una historia nueva de lotes y préstamos; no se deben reutilizar los datos previos como si pertenecieran a los contratos nuevos. Nunca cargar claves de despliegue en Vercel ni en GitHub.
+
 ## Checklist de entrega
 
 - [ ] Cuenta personal de Vercel conectada al repositorio.
@@ -89,6 +111,7 @@ No redeployar contratos para publicar la web. Si cambian contrato, ABI, IDs o ev
 - [ ] Seis variables `NEXT_PUBLIC_*` de Testnet cargadas en Production y Preview.
 - [ ] URL de Vercel abierta en incógnito y rutas principales verificadas.
 - [ ] Freighter probado en Testnet con cuentas sintéticas.
+- [x] Contratos registry, vault y SAC de prueba desplegados en Stellar Testnet; IDs incluidos arriba.
 - [ ] Servicio `svc/` e indexador alojados con HTTPS y volumen persistente, o limitación comunicada para la demo.
 - [ ] Secretos cargados solo en el proveedor; ningún `.env.production` ni token subido a Git.
 
